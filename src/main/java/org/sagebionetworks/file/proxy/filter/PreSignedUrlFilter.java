@@ -1,6 +1,7 @@
 package org.sagebionetworks.file.proxy.filter;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -11,6 +12,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.sagebionetworks.file.proxy.config.Configuration;
 import org.sagebionetworks.url.HttpMethod;
 import org.sagebionetworks.url.SignatureExpiredException;
@@ -24,6 +27,8 @@ import com.google.inject.Inject;
  *
  */
 public class PreSignedUrlFilter implements Filter{
+	
+	 private static final Logger log = LogManager.getLogger(PreSignedUrlFilter.class);
 	
 	private static final String TEXT_PLAIN = "text/plain";
 	final Configuration config;
@@ -50,17 +55,18 @@ public class PreSignedUrlFilter implements Filter{
 			urlBuffer.append("?");
 			urlBuffer.append(httpRequest.getQueryString());
 		}
+		String url = urlBuffer.toString();
 		try {
 			// This method will throw exceptions if the signature is not valid.
-			UrlSignerUtils.validatePresignedURL(method, urlBuffer.toString(), config.getUrlSignerSecretKey());
+			UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
 			// signature is valid so proceed.
 			chain.doFilter(httpRequest, httpResponse);
 		} catch (SignatureMismatchException e) {
 			// Signature is not valid
-			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, httpResponse, e);
+			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, url, httpResponse, e);
 		} catch (SignatureExpiredException e) {
 			// Signature is not valid
-			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, httpResponse, e);
+			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, url, httpResponse, e);
 		}
 	}
 	
@@ -71,11 +77,15 @@ public class PreSignedUrlFilter implements Filter{
 	 * @param e
 	 * @throws IOException
 	 */
-	private static void prepareErrorResponse(int statusCode, HttpServletResponse httpResponse, Exception e) throws IOException{
+	private static void prepareErrorResponse(int statusCode, String url, HttpServletResponse httpResponse, Exception e) throws IOException{
 		httpResponse.setStatus(statusCode);
 		httpResponse.setContentType(TEXT_PLAIN);
-		httpResponse.getWriter().write(e.getMessage());
-		httpResponse.getWriter().flush();
+		PrintWriter writer = httpResponse.getWriter();
+		writer.write(e.getMessage());
+		writer.flush();
+		if(log.isInfoEnabled()){
+			log.info("Status code: "+statusCode+" message: "+e.getMessage()+" url: "+url);
+		}
 	}
 
 	@Override

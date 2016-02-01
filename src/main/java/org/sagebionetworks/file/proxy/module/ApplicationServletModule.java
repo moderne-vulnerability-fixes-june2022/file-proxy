@@ -6,7 +6,10 @@ import com.google.inject.servlet.ServletModule;
 
 public class ApplicationServletModule extends ServletModule {
 
-	public ApplicationServletModule() {
+
+	@Override
+	protected void configureServlets() {
+		super.configureServlets();
 		// All calls must go through the pre-signed URL Filter.
 		filter("/*").through(PreSignedUrlFilter.class);
 	}
