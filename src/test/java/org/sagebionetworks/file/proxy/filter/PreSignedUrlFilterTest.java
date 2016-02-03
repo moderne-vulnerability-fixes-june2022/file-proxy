@@ -96,7 +96,7 @@ public class PreSignedUrlFilterTest {
 		verify(mockResponse).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		verify(mockResponse).getWriter();
 		String message = new String(outStream.toByteArray(), "UTF-8");
-		assertEquals("Pre-signed URL has expired", message);
+		assertEquals(UrlSignerUtils.MSG_URL_EXPIRED, message);
 	}
 	
 	@Test
@@ -112,7 +112,7 @@ public class PreSignedUrlFilterTest {
 		verify(mockResponse).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		verify(mockResponse).getWriter();
 		String message = new String(outStream.toByteArray(), "UTF-8");
-		assertEquals("The pre-signed URL signature does not match", message);
+		assertEquals(UrlSignerUtils.MSG_SIGNATURE_DOES_NOT_MATCH, message);
 	}
 
 }

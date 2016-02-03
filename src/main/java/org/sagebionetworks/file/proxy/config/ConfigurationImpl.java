@@ -25,6 +25,26 @@ public class ConfigurationImpl implements Configuration {
 		return getProperty("org.sagebionetworks.url.signer.secret.key");
 	}
 	
+	@Override
+	public String getSftpUsername() {
+		return getProperty("org.sagebionetworks.sftp.username");
+	}
+
+	@Override
+	public String getSftpPassword() {
+		return getProperty("org.sagebionetworks.sftp.password");
+	}
+
+	@Override
+	public String getSftpHost() {
+		return getProperty("org.sagebionetworks.sftp.host");
+	}
+
+	@Override
+	public int getSftpPort() {
+		return Integer.parseInt(getProperty("org.sagebionetworks.sftp.port"));
+	}
+	
 	
 	/**
 	 * Get a property value given its key.
@@ -32,7 +52,7 @@ public class ConfigurationImpl implements Configuration {
 	 * @return
 	 * @throws IllegalStateException if the property cannot be found or the value is empty.
 	 */
-	private String getProperty(String key){
+	protected String getProperty(String key){
 		String value = properties.getProperty(key);
 		if(value == null){
 			throw new IllegalStateException("Unable to find configuration property: "+key);

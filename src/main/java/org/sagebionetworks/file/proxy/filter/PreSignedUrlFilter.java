@@ -21,11 +21,13 @@ import org.sagebionetworks.url.SignatureMismatchException;
 import org.sagebionetworks.url.UrlSignerUtils;
 
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
 /**
  * Filter used for all requests to validate pre-signed URLs.
  *
  */
+@Singleton
 public class PreSignedUrlFilter implements Filter{
 	
 	 private static final Logger log = LogManager.getLogger(PreSignedUrlFilter.class);
