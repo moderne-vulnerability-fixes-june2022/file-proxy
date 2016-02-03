@@ -9,4 +9,28 @@ public interface Configuration {
 	 */
 	public String getUrlSignerSecretKey();
 
+	/**
+	 * The SFTP service username.
+	 * @return
+	 */
+	public String getSftpUsername();
+
+	/**
+	 * The SFTP service password.
+	 * @return
+	 */
+	public String getSftpPassword();
+
+	/**
+	 * The SFTP server host.
+	 * @return
+	 */
+	public String getSftpHost();
+
+	/**
+	 * The SFTP server port.
+	 * @return
+	 */
+	public int getSftpPort();
+
 }
