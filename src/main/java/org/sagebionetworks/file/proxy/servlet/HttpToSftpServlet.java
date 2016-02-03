@@ -43,7 +43,7 @@ public class HttpToSftpServlet extends HttpServlet {
 
 	public static final String PATH_PREFIX = "/sftp/";
 
-	public static String CONTENT_DISPOSITION_PATTER = "attachment; filename=\"%1$s\"";
+	public static String CONTENT_DISPOSITION_PATTERN = "attachment; filename=\"%1$s\"";
 
 	final SftpManager sftpManager;
 
@@ -76,7 +76,7 @@ public class HttpToSftpServlet extends HttpServlet {
 			}
 			if (fileName != null) {
 				response.setHeader(HEADER_CONTENT_DISPOSITION,
-						String.format(CONTENT_DISPOSITION_PATTER, fileName));
+						String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 			}
 			if (contentType != null) {
 				response.setHeader(HEADER_CONTENT_TYPE, contentType);

@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import org.mockito.MockitoAnnotations;
@@ -64,7 +65,42 @@ public class SftpManagerImplTest {
 		verify(mockSession).openChannel("sftp");
 		verify(mockChannel).connect();
 		verify(mockChannel).get(path, mockOutStream);
-		verify(mockChannel).exit();
+		verify(mockChannel).disconnect();
+		verify(mockSession).disconnect();
+	}
+	
+	@Test
+	public void testGetFileError() throws JSchException, SftpException{
+		// Setup a failure
+		doThrow(new SftpException(22, "Something went wrong")).when(mockChannel).get(anyString(), any(OutputStream.class));
+		String path = "somePath";
+		//call under test
+		try {
+			manager.getFile(path, mockOutStream);
+			fail("Should have failed");
+		} catch (Exception e) {
+			//expected
+		}
+		// both the channel and session must be disconnected even though there was an errors
+		verify(mockChannel).disconnect();
+		verify(mockSession).disconnect();
+	}
+	
+	@Test
+	public void testGetFileEarlyException() throws JSchException, SftpException{
+		// Setup a failure
+		when(mockJcraftFactory.openNewSession(userName, password, host, port)).thenThrow(new JSchException("Cannot connect"));
+		String path = "somePath";
+		//call under test
+		try {
+			manager.getFile(path, mockOutStream);
+			fail("Should have failed");
+		} catch (Exception e) {
+			//expected
+		}
+		verify(mockSession, never()).openChannel("sftp");
+		verify(mockChannel, never()).connect();
+		verify(mockChannel, never()).get(path, mockOutStream);
 	}
 
 }

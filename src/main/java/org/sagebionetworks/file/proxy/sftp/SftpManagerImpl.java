@@ -29,19 +29,31 @@ public class SftpManagerImpl implements SftpManager {
 	@Override
 	public void getFile(String path, OutputStream stream) {
 		// create a connection
+		Session session = null;
+		Channel channel = null;
 		try {
-			Session session = createNewConnection();
-			Channel channel = session.openChannel(TYPE_SFTP);
+			session = createNewConnection();
+			channel = session.openChannel(TYPE_SFTP);
 			channel.connect();
 			ChannelSftp sftpChannel = (ChannelSftp) channel;
 			sftpChannel.get(path, stream);
-			sftpChannel.exit();
 		} catch (JSchException e) {
 			// convert to a runtime
 			throw new RuntimeException(e);
 		} catch (SftpException e) {
 			// convert to a runtime
 			throw new RuntimeException(e);
+		}finally{
+			if(channel != null){
+				try {
+					channel.disconnect();
+				} catch (Exception e) {}
+			}
+			if(session != null){
+				try {
+					session.disconnect();
+				} catch (Exception e) {}
+			}
 		}
 	}
 	/**

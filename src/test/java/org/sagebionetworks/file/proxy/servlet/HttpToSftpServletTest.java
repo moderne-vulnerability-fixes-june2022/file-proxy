@@ -1,8 +1,9 @@
 package org.sagebionetworks.file.proxy.servlet;
 
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.CONTENT_DISPOSITION_PATTER;
+import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.CONTENT_DISPOSITION_PATTERN;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_DISPOSITION;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_LENGTH;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_TYPE;
@@ -73,7 +74,7 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// All three headers should be added
-		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTER, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
@@ -92,6 +93,7 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// two headers should be set
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
@@ -109,8 +111,9 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// two headers should be set
-		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTER, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
@@ -127,7 +130,8 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// two headers should be set
-		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTER, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "pathStart/pathEnd";
