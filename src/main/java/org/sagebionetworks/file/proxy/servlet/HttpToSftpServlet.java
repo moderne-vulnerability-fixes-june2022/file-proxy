@@ -84,7 +84,8 @@ public class HttpToSftpServlet extends HttpServlet {
 			// Write the entire file to the stream
 			OutputStream stream = response.getOutputStream();
 			// Path excludes /sftp/
-			String path = urlData.getPath().substring(PATH_PREFIX.length());
+			String[] pathSplit = urlData.getPath().split(PATH_PREFIX);
+			String path = pathSplit[pathSplit.length-1];
 			// the manger writes to the stream
 			sftpManager.getFile(path, stream);
 			response.setStatus(HttpServletResponse.SC_OK);

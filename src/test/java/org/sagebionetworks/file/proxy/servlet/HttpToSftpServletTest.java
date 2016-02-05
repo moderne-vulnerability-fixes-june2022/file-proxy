@@ -137,5 +137,18 @@ public class HttpToSftpServletTest {
 		String expectedPath = "pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
+	
+	@Test
+	public void testDoGetPathWithPrefix() throws ServletException, IOException{
+		StringBuffer urlBuffer = new StringBuffer();
+		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
+		
+		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
+		//call under test
+		servlet.doGet(mockRequest, mockResponse);
+		// the prefix should not change the path of the file.
+		String expectedPath = "pathStart/pathEnd";
+		verify(mockManager).getFile(expectedPath, mockStream);
+	}
 
 }
