@@ -58,6 +58,7 @@ public class PreSignedUrlFilter implements Filter{
 			urlBuffer.append(httpRequest.getQueryString());
 		}
 		String url = urlBuffer.toString();
+		log.info("url: "+url);
 		try {
 			// This method will throw exceptions if the signature is not valid.
 			UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
