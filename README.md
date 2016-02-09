@@ -29,14 +29,14 @@ filePath = /public/downloads/Before.png
 
 #### Proxy Server
 In this example proxy server will be launched locally.  The proxy server must be configured with the both the SFTP parameters and the secret key used to sign URLs generated from Synapse.
-secretKey =  ed29688c-cae2-11e5-9956-625662870761
+secretKey =  <url_signer_key>
 ```
 git clone https://github.com/Sage-Bionetworks/file-proxy.git
 cd file-proxy
 ```
 The proxy server can then be started by passing all of the relevant configuration information as system properties (-Dkey=value) as follows
 ```
-mvn tomcat:run -D"org.sagebionetworks.url.signer.secret.key=ed29688c-cae2-11e5-9956-625662870761" -Dorg.sagebionetworks.sftp.username=<service_username> -Dorg.sagebionetworks.sftp.password=<service_password> -Dorg.sagebionetworks.sftp.host=ec2-123.us-west-2.compute.amazonaws.com -Dorg.sagebionetworks.sftp.port=22
+mvn tomcat:run -D"org.sagebionetworks.url.signer.secret.key=<url_signer_key>" -Dorg.sagebionetworks.sftp.username=<service_username> -Dorg.sagebionetworks.sftp.password=<service_password> -Dorg.sagebionetworks.sftp.host=ec2-123.us-west-2.compute.amazonaws.com -Dorg.sagebionetworks.sftp.port=22
 ```
 console output:
 ```
@@ -59,11 +59,11 @@ Before we can start creating ProxyFileHandles for the above setups we must first
 the parameters Synapse will need to generated ProxyFileHandles and to issue pre-signed URL for ProxyFileHandles.
 The following curl call was used to create the ProxyStorageLocationSettings:
 ```
-curl -k -H "sessionToken:<session_token>" -H "Content-Type: application/json" -X POST -d '{"uploadType":"SFTP","secretKey":"ed29688c-cae2-11e5-9956-625662870761", "proxyUrl":"https://localhost:8080/file-proxy", "concreteType":"org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings"}' https://repo-prod.prod.sagebase.org/repo/v1/storageLocation
+curl -k -H "sessionToken:<session_token>" -H "Content-Type: application/json" -X POST -d '{"uploadType":"SFTP","secretKey":"<url_signer_key>", "proxyUrl":"https://localhost:8080/file-proxy", "concreteType":"org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings"}' https://repo-prod.prod.sagebase.org/repo/v1/storageLocation
 ```
 response:
 ```
-{"createdOn":"2016-02-09T00:42:06.942Z","uploadType":"SFTP","concreteType":"org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings","secretKey":"ed29688c-cae2-11e5-9956-625662870761","etag":"251fbeeb-3004-47dc-86af-56a11d2a8b3f","createdBy":273991,"proxyUrl":"https://localhost:8080/file-proxy","storageLocationId":4170}
+{"createdOn":"2016-02-09T00:42:06.942Z","uploadType":"SFTP","concreteType":"org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings","secretKey":"<url_signer_key>","etag":"251fbeeb-3004-47dc-86af-56a11d2a8b3f","createdBy":273991,"proxyUrl":"https://localhost:8080/file-proxy","storageLocationId":4170}
 ```
 
 #### ProxyFileHandle
