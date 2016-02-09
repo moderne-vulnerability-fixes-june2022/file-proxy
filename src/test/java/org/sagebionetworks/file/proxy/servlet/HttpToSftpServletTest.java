@@ -150,5 +150,20 @@ public class HttpToSftpServletTest {
 		String expectedPath = "pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
+	
+	@Test
+	public void testDoGetSftpInPath() throws ServletException, IOException{
+		
+		StringBuffer urlBuffer = new StringBuffer();
+		// In this example the path contains sftp.
+		urlBuffer.append("http://host.org/sftp/pathStart/sftp/pathEnd");
+		
+		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
+		//call under test
+		servlet.doGet(mockRequest, mockResponse);
+		
+		String expectedPath = "pathStart/sftp/pathEnd";
+		verify(mockManager).getFile(expectedPath, mockStream);
+	}
 
 }
