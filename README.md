@@ -11,7 +11,7 @@ The following properties must be provided to the application to run:
 | org.sagebionetworks.sftp.password | The SFTP service password. |
 | org.sagebionetworks.sftp.host | The SFTP server host. |
 | org.sagebionetworks.sftp.port | The SFTP server port. |
-The example below shows how 
+The example below shows how to start the proxy confiugred with these values.
 
 ## Example
 In the following example, the goal is to setup a new ProxyFileHandle to represent a file that resides on a SFTP server.  After everything is setup correctly, users should be able to download the file from any Synapse client in the same way as any other file in Synapse.
