@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.sftp.SftpManager;
 import org.sagebionetworks.url.UrlData;
 
@@ -88,10 +89,14 @@ public class HttpToSftpServlet extends HttpServlet {
 			if(index < 0){
 				throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
 			}
-			String path = urlData.getPath().substring(index+PATH_PREFIX.length());
+			String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
 			// the manger writes to the stream
 			sftpManager.getFile(path, stream);
 			response.setStatus(HttpServletResponse.SC_OK);
+		} catch (NotFoundException e) {
+			log.error("Not Found: "+e.getMessage());
+			response.sendError(HttpServletResponse.SC_NOT_FOUND,
+					e.getMessage());
 		} catch (Exception e) {
 			log.error("Request failed", e);
 			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

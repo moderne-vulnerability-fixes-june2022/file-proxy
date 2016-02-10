@@ -2,6 +2,8 @@ package org.sagebionetworks.file.proxy.sftp;
 
 import java.io.OutputStream;
 
+import org.sagebionetworks.file.proxy.NotFoundException;
+
 /**
  * Abstraction for SFTP operations.
  *
@@ -14,6 +16,6 @@ public interface SftpManager {
 	 * @param path
 	 * @param stream
 	 */
-	void getFile(String path, OutputStream stream);
+	void getFile(String path, OutputStream stream) throws NotFoundException;
 
 }
