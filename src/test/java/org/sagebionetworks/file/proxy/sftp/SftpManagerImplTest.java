@@ -10,6 +10,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import org.mockito.MockitoAnnotations;
+import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.config.Configuration;
 
 import com.jcraft.jsch.ChannelSftp;
@@ -57,7 +58,7 @@ public class SftpManagerImplTest {
 	}
 	
 	@Test
-	public void testGetFileHappy() throws JSchException, SftpException{
+	public void testGetFileHappy() throws Exception {
 		String path = "somePath";
 		//call under test
 		manager.getFile(path, mockOutStream);
@@ -101,6 +102,24 @@ public class SftpManagerImplTest {
 		verify(mockSession, never()).openChannel("sftp");
 		verify(mockChannel, never()).connect();
 		verify(mockChannel, never()).get(path, mockOutStream);
+	}
+	
+	@Test
+	public void testGetNotFound() throws JSchException, SftpException{
+		// Setup a failure
+		doThrow(new RuntimeException(SftpManagerImpl.NO_SUCH_FILE)).when(mockChannel).get(anyString(), any(OutputStream.class));
+		String path = "somePath";
+		//call under test
+		try {
+			manager.getFile(path, mockOutStream);
+			fail("Should have failed");
+		} catch (NotFoundException e) {
+			//expected
+			assertEquals(path, e.getMessage());
+		}
+		// both the channel and session must be disconnected even though there was an errors
+		verify(mockChannel).disconnect();
+		verify(mockSession).disconnect();
 	}
 
 }

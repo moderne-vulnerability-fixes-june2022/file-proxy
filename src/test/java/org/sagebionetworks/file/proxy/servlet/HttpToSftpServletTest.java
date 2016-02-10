@@ -1,8 +1,6 @@
 package org.sagebionetworks.file.proxy.servlet;
 
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.CONTENT_DISPOSITION_PATTERN;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_DISPOSITION;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_LENGTH;
@@ -11,11 +9,9 @@ import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_CONTE
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_CONTENT_TYPE;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_FILE_NAME;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 
-import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -24,6 +20,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.sftp.SftpManager;
 
 public class HttpToSftpServletTest {
@@ -70,7 +67,7 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testDoGetHappy() throws ServletException, IOException{
+	public void testDoGetHappy() throws Exception {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// All three headers should be added
@@ -78,12 +75,12 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
-		String expectedPath = "pathStart/pathEnd";
+		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
 	
 	@Test
-	public void testDoGetNoFileName() throws ServletException, IOException{
+	public void testDoGetNoFileName() throws Exception{
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_CONTENT_SIZE).append("=").append(contentSize);
@@ -97,12 +94,12 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
-		String expectedPath = "pathStart/pathEnd";
+		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
 	
 	@Test
-	public void testDoGetNoContentType() throws ServletException, IOException{
+	public void testDoGetNoContentType() throws Exception{
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
 		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
@@ -115,12 +112,12 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
-		String expectedPath = "pathStart/pathEnd";
+		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
 	
 	@Test
-	public void testDoGetNoContentSize() throws ServletException, IOException{
+	public void testDoGetNoContentSize() throws Exception{
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
@@ -134,12 +131,12 @@ public class HttpToSftpServletTest {
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
-		String expectedPath = "pathStart/pathEnd";
+		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
 	
 	@Test
-	public void testDoGetPathWithPrefix() throws ServletException, IOException{
+	public void testDoGetPathWithPrefix() throws Exception {
 		StringBuffer urlBuffer = new StringBuffer();
 		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
 		
@@ -147,12 +144,12 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		// the prefix should not change the path of the file.
-		String expectedPath = "pathStart/pathEnd";
+		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
 	}
 	
 	@Test
-	public void testDoGetSftpInPath() throws ServletException, IOException{
+	public void testDoGetSftpInPath() throws Exception {
 		
 		StringBuffer urlBuffer = new StringBuffer();
 		// In this example the path contains sftp.
@@ -162,8 +159,19 @@ public class HttpToSftpServletTest {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
 		
-		String expectedPath = "pathStart/sftp/pathEnd";
+		String expectedPath = "/pathStart/sftp/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
+	}
+	
+	@Test
+	public void testDoGetNotFound() throws Exception {
+		// Setup not found
+		String path = "/file/does/not/exist";
+		doThrow(new NotFoundException(path)).when(mockManager).getFile(any(String.class), any(OutputStream.class));
+		//call under test
+		servlet.doGet(mockRequest, mockResponse);
+		// should result in a 404
+		verify(mockResponse).sendError(HttpServletResponse.SC_NOT_FOUND, path);		
 	}
 
 }
