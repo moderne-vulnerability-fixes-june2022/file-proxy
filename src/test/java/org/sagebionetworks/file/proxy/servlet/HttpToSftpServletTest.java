@@ -72,7 +72,6 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		// All three headers should be added
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, "0");
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "/pathStart/pathEnd";
