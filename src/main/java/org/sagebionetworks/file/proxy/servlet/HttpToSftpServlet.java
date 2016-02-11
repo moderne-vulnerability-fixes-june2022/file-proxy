@@ -93,7 +93,6 @@ public class HttpToSftpServlet extends HttpServlet {
 			// Count the bytes written to the stream.
 			response.setHeader(HEADER_CONTENT_LENGTH, ""+out.getCount());
 			response.setStatus(HttpServletResponse.SC_OK);
-			response.flushBuffer();
 		} catch (NotFoundException e) {
 			log.error("Not Found: "+e.getMessage());
 			response.sendError(HttpServletResponse.SC_NOT_FOUND,
