@@ -77,6 +77,9 @@ public class HttpToSftpServletTest {
 		
 		String expectedPath = "/pathStart/pathEnd";
 		verify(mockManager).getFile(expectedPath, mockStream);
+		
+		verify(mockStream).flush();
+		verify(mockStream).close();
 	}
 	
 	@Test

@@ -93,6 +93,8 @@ public class HttpToSftpServlet extends HttpServlet {
 			// the manger writes to the stream
 			sftpManager.getFile(path, stream);
 			response.setStatus(HttpServletResponse.SC_OK);
+			stream.flush();
+			stream.close();
 		} catch (NotFoundException e) {
 			log.error("Not Found: "+e.getMessage());
 			response.sendError(HttpServletResponse.SC_NOT_FOUND,
