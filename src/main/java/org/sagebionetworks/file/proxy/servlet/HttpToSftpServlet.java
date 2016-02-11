@@ -87,11 +87,9 @@ public class HttpToSftpServlet extends HttpServlet {
 			String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
 			
 			// Write the entire file to the stream
-			CountingOutputStream out = new CountingOutputStream(response.getOutputStream());
+			OutputStream out = response.getOutputStream();
 			// the manger writes to the stream
 			sftpManager.getFile(path, out);
-			// Count the bytes written to the stream.
-			response.setHeader(HEADER_CONTENT_LENGTH, ""+out.getCount());
 			response.setStatus(HttpServletResponse.SC_OK);
 		} catch (NotFoundException e) {
 			log.error("Not Found: "+e.getMessage());
