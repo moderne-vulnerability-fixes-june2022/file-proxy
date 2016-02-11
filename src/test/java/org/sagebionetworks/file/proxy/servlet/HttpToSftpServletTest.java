@@ -72,14 +72,11 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		// All three headers should be added
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, "0");
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
-		
-		verify(mockStream).flush();
-		verify(mockStream).close();
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
@@ -94,11 +91,10 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		// two headers should be set
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
@@ -112,11 +108,10 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		// two headers should be set
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
@@ -135,7 +130,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
@@ -148,7 +143,7 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		// the prefix should not change the path of the file.
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
@@ -163,7 +158,7 @@ public class HttpToSftpServletTest {
 		servlet.doGet(mockRequest, mockResponse);
 		
 		String expectedPath = "/pathStart/sftp/pathEnd";
-		verify(mockManager).getFile(expectedPath, mockStream);
+		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
