@@ -15,6 +15,7 @@ import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.sftp.SftpManager;
 import org.sagebionetworks.url.UrlData;
 
+import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -67,14 +68,10 @@ public class HttpToSftpServlet extends HttpServlet {
 			UrlData urlData = new UrlData(urlBuffer.toString());
 			LinkedHashMap<String, String> queryParameters = urlData
 					.getQueryParameters();
-			String contentSize = queryParameters.get(KEY_CONTENT_SIZE);
 			String fileName = queryParameters.get(KEY_FILE_NAME);
 			String contentType = queryParameters.get(KEY_CONTENT_TYPE);
 
 			// Setup the headers as needed
-			if (contentSize != null) {
-				response.setHeader(HEADER_CONTENT_LENGTH, contentSize);
-			}
 			if (fileName != null) {
 				response.setHeader(HEADER_CONTENT_DISPOSITION,
 						String.format(CONTENT_DISPOSITION_PATTERN, fileName));
@@ -82,19 +79,21 @@ public class HttpToSftpServlet extends HttpServlet {
 			if (contentType != null) {
 				response.setHeader(HEADER_CONTENT_TYPE, contentType);
 			}
-			// Write the entire file to the stream
-			OutputStream stream = response.getOutputStream();
 			// Path excludes /sftp/
 			int index = urlData.getPath().indexOf(PATH_PREFIX);
 			if(index < 0){
 				throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
 			}
 			String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
+			
+			// Write the entire file to the stream
+			CountingOutputStream out = new CountingOutputStream(response.getOutputStream());
 			// the manger writes to the stream
-			sftpManager.getFile(path, stream);
+			sftpManager.getFile(path, out);
+			// Count the bytes written to the stream.
+			response.setHeader(HEADER_CONTENT_LENGTH, ""+out.getCount());
 			response.setStatus(HttpServletResponse.SC_OK);
-			stream.flush();
-			stream.close();
+			response.flushBuffer();
 		} catch (NotFoundException e) {
 			log.error("Not Found: "+e.getMessage());
 			response.sendError(HttpServletResponse.SC_NOT_FOUND,
