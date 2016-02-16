@@ -218,7 +218,7 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testDoHeadtHappy() throws Exception {
+	public void testDoHeadHappy() throws Exception {
 		//call under test
 		servlet.doHead(mockRequest, mockResponse);
 		// All of the headers should be added.
