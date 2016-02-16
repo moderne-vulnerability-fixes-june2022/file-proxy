@@ -114,5 +114,19 @@ public class PreSignedUrlFilterTest {
 		String message = new String(outStream.toByteArray(), "UTF-8");
 		assertEquals(UrlSignerUtils.MSG_SIGNATURE_DOES_NOT_MATCH, message);
 	}
+	
+	@Test
+	public void testDoFilterHEAD() throws IOException, ServletException{
+		// setup an expiration in the past
+		expiration = new Date(456L);
+		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
+		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
+		// setup a head call
+		when(mockRequest.getMethod()).thenReturn(HttpMethod.HEAD.name());
+		// call under test
+		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
+		// head should pass through even though the ULR was bad.
+		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
+	}
 
 }

@@ -1,14 +1,18 @@
 package org.sagebionetworks.file.proxy.sftp;
 
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.io.OutputStream;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 import org.mockito.MockitoAnnotations;
 import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.config.Configuration;
@@ -18,8 +22,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 
-public class SftpManagerImplTest {
-	
+public class SftpConnectionManagerImplTest {
 	@Mock
 	Configuration mockConfig;
 	@Mock
@@ -30,96 +33,84 @@ public class SftpManagerImplTest {
 	ChannelSftp mockChannel;
 	@Mock
 	OutputStream mockOutStream;
-	
-	SftpManagerImpl manager;
-	
+	@Mock
+	ConnectionHandler mockHandler;
+
+	SftpConnectionManagerImpl manager;
+
 	String userName;
 	String password;
 	String host;
 	int port;
-	
-	@Before 
-	public void before() throws JSchException{
+
+	@Before
+	public void before() throws JSchException {
 		MockitoAnnotations.initMocks(this);
-		
+
 		userName = "userName";
 		password = "password";
 		host = "host.org";
 		port = 22;
-		
+
 		when(mockConfig.getSftpUsername()).thenReturn(userName);
 		when(mockConfig.getSftpPassword()).thenReturn(password);
 		when(mockConfig.getSftpHost()).thenReturn(host);
 		when(mockConfig.getSftpPort()).thenReturn(port);
-		
-		when(mockJcraftFactory.openNewSession(userName, password, host, port)).thenReturn(mockSession);
+
+		when(mockJcraftFactory.openNewSession(userName, password, host, port))
+				.thenReturn(mockSession);
 		when(mockSession.openChannel(anyString())).thenReturn(mockChannel);
-		manager = new SftpManagerImpl(mockConfig, mockJcraftFactory);
+		manager = new SftpConnectionManagerImpl(mockConfig, mockJcraftFactory);
 	}
-	
+
 	@Test
-	public void testGetFileHappy() throws Exception {
+	public void testConnectHappy() throws Exception {
 		String path = "somePath";
-		//call under test
-		manager.getFile(path, mockOutStream);
+		// call under test
+		manager.connect(mockHandler);
 		// the channel should be opened
 		verify(mockSession).openChannel("sftp");
 		verify(mockChannel).connect();
-		verify(mockChannel).get(path, mockOutStream);
 		verify(mockChannel).disconnect();
 		verify(mockSession).disconnect();
+		verify(mockHandler).execute(any(SftpConnection.class));
 	}
-	
+
 	@Test
-	public void testGetFileError() throws JSchException, SftpException{
+	public void testConnectHandlerError() throws NotFoundException, Exception {
 		// Setup a failure
-		doThrow(new SftpException(22, "Something went wrong")).when(mockChannel).get(anyString(), any(OutputStream.class));
-		String path = "somePath";
-		//call under test
+		doThrow(new SftpException(22, "Something went wrong"))
+				.when(mockHandler).execute(any(SftpConnection.class));
+		// call under test
 		try {
-			manager.getFile(path, mockOutStream);
+			manager.connect(mockHandler);
 			fail("Should have failed");
 		} catch (Exception e) {
-			//expected
+			// expected
 		}
-		// both the channel and session must be disconnected even though there was an errors
+		// both the channel and session must be disconnected even though there
+		// was an errors
 		verify(mockChannel).disconnect();
 		verify(mockSession).disconnect();
 	}
-	
+
 	@Test
-	public void testGetFileEarlyException() throws JSchException, SftpException{
+	public void testGetFileEarlyException() throws JSchException, SftpException {
 		// Setup a failure
-		when(mockJcraftFactory.openNewSession(userName, password, host, port)).thenThrow(new JSchException("Cannot connect"));
+		when(mockJcraftFactory.openNewSession(userName, password, host, port))
+				.thenThrow(new JSchException("Cannot connect"));
 		String path = "somePath";
-		//call under test
+		// call under test
 		try {
-			manager.getFile(path, mockOutStream);
+			manager.connect(mockHandler);
 			fail("Should have failed");
 		} catch (Exception e) {
-			//expected
+			// expected
 		}
 		verify(mockSession, never()).openChannel("sftp");
 		verify(mockChannel, never()).connect();
 		verify(mockChannel, never()).get(path, mockOutStream);
 	}
-	
-	@Test
-	public void testGetNotFound() throws JSchException, SftpException{
-		// Setup a failure
-		doThrow(new RuntimeException(SftpManagerImpl.NO_SUCH_FILE)).when(mockChannel).get(anyString(), any(OutputStream.class));
-		String path = "somePath";
-		//call under test
-		try {
-			manager.getFile(path, mockOutStream);
-			fail("Should have failed");
-		} catch (NotFoundException e) {
-			//expected
-			assertEquals(path, e.getMessage());
-		}
-		// both the channel and session must be disconnected even though there was an errors
-		verify(mockChannel).disconnect();
-		verify(mockSession).disconnect();
-	}
+
 
 }

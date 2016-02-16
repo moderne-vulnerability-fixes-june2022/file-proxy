@@ -5,10 +5,10 @@ import java.io.OutputStream;
 import org.sagebionetworks.file.proxy.NotFoundException;
 
 /**
- * Abstraction for SFTP operations.
- *
+ * Abstraction of all operations that can be performed on a SFTP connection.
+ * 
  */
-public interface SftpManager {
+public interface SftpConnection {
 
 	/**
 	 * Execute a SFTP get and write the file to the passed output stream.
@@ -18,4 +18,10 @@ public interface SftpManager {
 	 */
 	void getFile(String path, OutputStream stream) throws NotFoundException;
 
+	/**
+	 * Get the size of a given file.
+	 * @param path
+	 * @return
+	 */
+	long getFileSize(String path) throws NotFoundException;
 }

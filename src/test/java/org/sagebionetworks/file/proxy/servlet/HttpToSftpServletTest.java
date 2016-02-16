@@ -1,15 +1,13 @@
 package org.sagebionetworks.file.proxy.servlet;
 
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.CONTENT_DISPOSITION_PATTERN;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_DISPOSITION;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_LENGTH;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.HEADER_CONTENT_TYPE;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_CONTENT_SIZE;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_CONTENT_TYPE;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.KEY_FILE_NAME;
+import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.*;
 
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URLEncoder;
 
 import javax.servlet.ServletOutputStream;
@@ -20,8 +18,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.sagebionetworks.file.proxy.NotFoundException;
-import org.sagebionetworks.file.proxy.sftp.SftpManager;
+import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
+import org.sagebionetworks.file.proxy.sftp.SftpConnection;
+import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
 
 public class HttpToSftpServletTest {
 	
@@ -30,14 +32,19 @@ public class HttpToSftpServletTest {
 	@Mock
 	HttpServletResponse mockResponse;
 	@Mock
-	SftpManager mockManager;
+	SftpConnectionManager mockConnectionManager;
 	@Mock
 	ServletOutputStream mockStream;
+	@Mock
+	SftpConnection mockConnection;
+	@Mock
+	ConnectionHandler mockConnectionHandler;
 	
 	String fileName;
 	String contentType;
 	String contentTypeEncoded;
-	String contentSize;
+	long contentSize;
+	String contentMD5;
 	OutputStream out;
 	
 	HttpToSftpServlet servlet;
@@ -51,9 +58,112 @@ public class HttpToSftpServletTest {
 		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
 		// setup the query string
 		fileName = "foo.txt";
-		contentSize = "9876";
+		contentSize = 9876L;
 		contentType = "text/html; charset=utf-8";
 		contentTypeEncoded = URLEncoder.encode(contentType, "UTF-8");
+		contentMD5 = "MD5base64";
+		
+		StringBuilder query = new StringBuilder();
+		query.append(KEY_FILE_NAME).append("=").append(fileName);
+		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
+		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		when(mockRequest.getQueryString()).thenReturn(query.toString());
+		
+		when(mockResponse.getOutputStream()).thenReturn(mockStream);
+		
+		// Setup a mock connection when connect is called.
+		doAnswer(new Answer<Void>(){
+			@Override
+			public Void answer(InvocationOnMock invocation)
+					throws Throwable {
+				// Connect with a mock connection.
+				ConnectionHandler handler = (ConnectionHandler) invocation.getArguments()[0];
+				// forward the mock connection to the handler.
+				handler.execute(mockConnection);
+				return null;
+			}}).when(mockConnectionManager).connect(any(ConnectionHandler.class));
+		
+		servlet = new HttpToSftpServlet(mockConnectionManager);
+		
+		// return the content size
+		when(mockConnection.getFileSize(anyString())).thenReturn(contentSize);
+	}
+	
+	@Test
+	public void testPrepareResponse() throws MalformedURLException, NotFoundException{
+		// call under test
+		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd",path);
+		
+		// four headers should be added
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+	}
+	
+	@Test
+	public void testPrepareResponseWithPrefix() throws MalformedURLException, NotFoundException{
+		// The 'prefix' should be ignored.
+		StringBuffer urlBuffer = new StringBuffer();
+		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
+		// call under test
+		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd",path);
+	}
+	
+	@Test
+	public void testPrepareResponseWithSftpInPath() throws MalformedURLException, NotFoundException{
+		// The 'prefix' should be ignored.
+		StringBuffer urlBuffer = new StringBuffer();
+		urlBuffer.append("http://host.org/sftp/pathStart/sftp/pathEnd");
+		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
+		// call under test
+		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/sftp/pathEnd",path);
+	}
+	
+	@Test
+	public void testPrepareResponseNoName() throws MalformedURLException, NotFoundException{
+		
+		StringBuilder query = new StringBuilder();
+		query.append(KEY_CONTENT_SIZE).append("=").append(contentSize);
+		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		when(mockRequest.getQueryString()).thenReturn(query.toString());
+		
+		// call under test
+		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		
+		// four headers should be added
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+	}
+	
+	@Test
+	public void testPrepareResponseNoContentType() throws MalformedURLException, NotFoundException{
+		
+		StringBuilder query = new StringBuilder();
+		query.append(KEY_FILE_NAME).append("=").append(fileName);
+		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		when(mockRequest.getQueryString()).thenReturn(query.toString());
+		
+		// call under test
+		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		
+		// four headers should be added
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+	}
+	
+	@Test
+	public void testPrepareResponseNoMD5() throws MalformedURLException, NotFoundException{
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
@@ -61,114 +171,63 @@ public class HttpToSftpServletTest {
 		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
-		when(mockResponse.getOutputStream()).thenReturn(mockStream);
+		// call under test
+		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
 		
-		servlet = new HttpToSftpServlet(mockManager);
+		// four headers should be added
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_MD5, contentMD5);
+	}
+	
+	@Test
+	public void testDoConnectionUnknownException() throws Exception{
+		// setup a not found
+		String error = "some error";
+		doThrow(new RuntimeException(error)).when(mockConnectionManager).connect(any(ConnectionHandler.class));
+		// call under test
+		servlet.doConnection(mockRequest, mockResponse, mockConnectionHandler);
+		// should result in a 500
+		verify(mockResponse).sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, error);		
+	}
+	
+	@Test
+	public void testDoConnectionNotFound() throws Exception{
+		// setup a not found
+		String path = "/file/does/not/exist";
+		doThrow(new NotFoundException(path)).when(mockConnectionManager).connect(any(ConnectionHandler.class));
+		// call under test
+		servlet.doConnection(mockRequest, mockResponse, mockConnectionHandler);
+		// should result in a 404
+		verify(mockResponse).sendError(HttpServletResponse.SC_NOT_FOUND, path);		
 	}
 	
 	@Test
 	public void testDoGetHappy() throws Exception {
 		//call under test
 		servlet.doGet(mockRequest, mockResponse);
-		// All three headers should be added
+		// All of the headers should be added.
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
 		
 		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
+		verify(mockConnection).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
-	public void testDoGetNoFileName() throws Exception{
-		
-		StringBuilder query = new StringBuilder();
-		query.append(KEY_CONTENT_SIZE).append("=").append(contentSize);
-		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
-		when(mockRequest.getQueryString()).thenReturn(query.toString());
-		
+	public void testDoHeadHappy() throws Exception {
 		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		// two headers should be set
-		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
-		
-		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
-	}
-	
-	@Test
-	public void testDoGetNoContentType() throws Exception{
-		StringBuilder query = new StringBuilder();
-		query.append(KEY_FILE_NAME).append("=").append(fileName);
-		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
-		when(mockRequest.getQueryString()).thenReturn(query.toString());
-		
-		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		// two headers should be set
+		servlet.doHead(mockRequest, mockResponse);
+		// All of the headers should be added.
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
-		
-		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
-	}
-	
-	@Test
-	public void testDoGetNoContentSize() throws Exception{
-		
-		StringBuilder query = new StringBuilder();
-		query.append(KEY_FILE_NAME).append("=").append(fileName);
-		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
-		when(mockRequest.getQueryString()).thenReturn(query.toString());
-		
-		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		// two headers should be set
-		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-		verify(mockResponse, never()).setHeader(HEADER_CONTENT_LENGTH, contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
-		
-		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
-	}
-	
-	@Test
-	public void testDoGetPathWithPrefix() throws Exception {
-		StringBuffer urlBuffer = new StringBuffer();
-		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
-		
-		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
-		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		// the prefix should not change the path of the file.
-		String expectedPath = "/pathStart/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
-	}
-	
-	@Test
-	public void testDoGetSftpInPath() throws Exception {
-		
-		StringBuffer urlBuffer = new StringBuffer();
-		// In this example the path contains sftp.
-		urlBuffer.append("http://host.org/sftp/pathStart/sftp/pathEnd");
-		
-		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
-		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		
-		String expectedPath = "/pathStart/sftp/pathEnd";
-		verify(mockManager).getFile(eq(expectedPath), any(OutputStream.class));
-	}
-	
-	@Test
-	public void testDoGetNotFound() throws Exception {
-		// Setup not found
-		String path = "/file/does/not/exist";
-		doThrow(new NotFoundException(path)).when(mockManager).getFile(any(String.class), any(OutputStream.class));
-		//call under test
-		servlet.doGet(mockRequest, mockResponse);
-		// should result in a 404
-		verify(mockResponse).sendError(HttpServletResponse.SC_NOT_FOUND, path);		
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		// The file should not be read with a head.
+		verify(mockConnection, never()).getFile(anyString(), any(OutputStream.class));
 	}
 
 }
