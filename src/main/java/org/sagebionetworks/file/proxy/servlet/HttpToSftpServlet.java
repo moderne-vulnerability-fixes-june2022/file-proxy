@@ -2,6 +2,7 @@ package org.sagebionetworks.file.proxy.servlet;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.util.LinkedHashMap;
 
 import javax.servlet.ServletException;
@@ -12,10 +13,11 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.sagebionetworks.file.proxy.NotFoundException;
-import org.sagebionetworks.file.proxy.sftp.SftpManager;
+import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
+import org.sagebionetworks.file.proxy.sftp.SftpConnection;
+import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
 import org.sagebionetworks.url.UrlData;
 
-import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -25,72 +27,79 @@ import com.google.inject.Singleton;
  */
 @Singleton
 public class HttpToSftpServlet extends HttpServlet {
+	
+	public static final long serialVersionUID = 1L;
 
 	private static final Logger log = LogManager
 			.getLogger(HttpToSftpServlet.class);
 
 	public static final String HEADER_CONTENT_TYPE = "Content-Type";
-
 	public static final String HEADER_CONTENT_DISPOSITION = "Content-Disposition";
-
 	public static final String HEADER_CONTENT_LENGTH = "Content-Length";
+	public static final String HEADER_CONTENT_MD5 = "Content-MD5";
 
+	public static final String KEY_CONTENT_MD5 = "contentMD5";
 	public static final String KEY_CONTENT_TYPE = "contentType";
-
 	public static final String KEY_FILE_NAME = "fileName";
-
 	public static final String KEY_CONTENT_SIZE = "contentSize";
-
-	public static final long serialVersionUID = 1L;
 
 	public static final String PATH_PREFIX = "/sftp/";
 
 	public static String CONTENT_DISPOSITION_PATTERN = "attachment; filename=\"%1$s\"";
 
-	final SftpManager sftpManager;
+	final SftpConnectionManager connectionManager;
 
 	@Inject
-	public HttpToSftpServlet(SftpManager sftpManager) {
-		this.sftpManager = sftpManager;
+	public HttpToSftpServlet(SftpConnectionManager connectionManager) {
+		this.connectionManager = connectionManager;
 	}
 
 	@Override
-	protected void doGet(HttpServletRequest request,
-			HttpServletResponse response) throws ServletException, IOException {
-		try {
-			// Read the URL from the request
-			StringBuffer urlBuffer = request.getRequestURL();
-			if (request.getQueryString() != null) {
-				urlBuffer.append("?");
-				urlBuffer.append(request.getQueryString());
-			}
-			// parse the URL
-			UrlData urlData = new UrlData(urlBuffer.toString());
-			LinkedHashMap<String, String> queryParameters = urlData
-					.getQueryParameters();
-			String fileName = queryParameters.get(KEY_FILE_NAME);
-			String contentType = queryParameters.get(KEY_CONTENT_TYPE);
-
-			// Setup the headers as needed
-			if (fileName != null) {
-				response.setHeader(HEADER_CONTENT_DISPOSITION,
-						String.format(CONTENT_DISPOSITION_PATTERN, fileName));
-			}
-			if (contentType != null) {
-				response.setHeader(HEADER_CONTENT_TYPE, contentType);
-			}
-			// Path excludes /sftp/
-			int index = urlData.getPath().indexOf(PATH_PREFIX);
-			if(index < 0){
-				throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
-			}
-			String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
+	protected void doGet(final HttpServletRequest request,
+			final HttpServletResponse response) throws ServletException, IOException {
+		// Connect to SFTP server.
+		doConnection(request, response, new ConnectionHandler() {
 			
-			// Write the entire file to the stream
-			OutputStream out = response.getOutputStream();
-			// the manger writes to the stream
-			sftpManager.getFile(path, out);
-			response.setStatus(HttpServletResponse.SC_OK);
+			@Override
+			public void execute(SftpConnection connection) throws NotFoundException, IOException {
+				// prepare the response based on what the caller is asking for.
+				final String path = prepareResponse(request, response, connection);
+				// Write the file to the HTTP output stream
+				OutputStream out = response.getOutputStream();
+				// proxy the file...
+				connection.getFile(path, out);
+				// done
+				response.setStatus(HttpServletResponse.SC_OK);
+			}
+		});
+	}
+
+	@Override
+	protected void doHead(final HttpServletRequest request, final HttpServletResponse response)
+			throws ServletException, IOException {
+		// make a connection and get the size
+		doConnection(request, response, new ConnectionHandler() {
+			
+			@Override
+			public void execute(SftpConnection connection) throws Exception {
+				// This will just setup the response without downloading the file.
+				prepareResponse(request, response, connection);
+				// done
+				response.setStatus(HttpServletResponse.SC_OK);
+			}
+		});
+	}
+	
+	/**
+	 * General SFTP connection with error handling.
+	 * @param request
+	 * @param response
+	 * @param handler
+	 * @throws IOException
+	 */
+	void doConnection(final HttpServletRequest request, final HttpServletResponse response, ConnectionHandler handler) throws ServletException, IOException{
+		try{
+			connectionManager.connect(handler);
 		} catch (NotFoundException e) {
 			log.error("Not Found: "+e.getMessage());
 			response.sendError(HttpServletResponse.SC_NOT_FOUND,
@@ -101,5 +110,55 @@ public class HttpToSftpServlet extends HttpServlet {
 					e.getMessage());
 		}
 	}
+	
+	/**
+	 * The basic response is prepared the same for both GET and HEAD calls.
+	 * 
+	 * @param request
+	 * @param response
+	 * @return The path of the file.
+	 * @throws MalformedURLException
+	 * @throws NotFoundException 
+	 */
+	static String prepareResponse(HttpServletRequest request,
+			HttpServletResponse response, SftpConnection connection) throws MalformedURLException, NotFoundException{
+		// Read the URL from the request
+		StringBuffer urlBuffer = request.getRequestURL();
+		if (request.getQueryString() != null) {
+			urlBuffer.append("?");
+			urlBuffer.append(request.getQueryString());
+		}
+		// parse the URL
+		UrlData urlData = new UrlData(urlBuffer.toString());
+		LinkedHashMap<String, String> queryParameters = urlData
+				.getQueryParameters();
+		String fileName = queryParameters.get(KEY_FILE_NAME);
+		String contentType = queryParameters.get(KEY_CONTENT_TYPE);
+		String md5 = queryParameters.get(KEY_CONTENT_MD5);
 
+		// Setup the headers as needed
+		if (fileName != null) {
+			response.setHeader(HEADER_CONTENT_DISPOSITION,
+					String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		}
+		if (contentType != null) {
+			response.setHeader(HEADER_CONTENT_TYPE, contentType);
+		}
+		if(md5 != null){
+			response.setHeader(HEADER_CONTENT_MD5, md5);
+		}
+		// Path excludes /sftp/
+		int index = urlData.getPath().indexOf(PATH_PREFIX);
+		if(index < 0){
+			throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
+		}
+		// The path of the file on the SFTP server.
+		String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
+		// get the file size.
+		long contentLength = connection.getFileSize(path);
+		// add the size header
+		response.setHeader(HEADER_CONTENT_LENGTH, Long.toString(contentLength));
+		return path;
+	}
+	
 }

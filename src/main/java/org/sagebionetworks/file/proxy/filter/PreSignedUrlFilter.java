@@ -60,9 +60,16 @@ public class PreSignedUrlFilter implements Filter{
 		String url = urlBuffer.toString();
 		log.info("url: "+url);
 		try {
-			// This method will throw exceptions if the signature is not valid.
-			UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
-			// signature is valid so proceed.
+			/*
+			 * HEAD calls are used by clients to get all of the meta data before starting an actual file download.
+			 * Since the HEAD call will not return file data the pre-signed URL validation is not required.
+			 * 
+			 */
+			if(!HttpMethod.HEAD.equals(method)){
+				// This method will throw exceptions if the signature is not valid.
+				UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
+			}
+			// signature is valid or not required so proceed.
 			chain.doFilter(httpRequest, httpResponse);
 		} catch (SignatureMismatchException e) {
 			// Signature is not valid
