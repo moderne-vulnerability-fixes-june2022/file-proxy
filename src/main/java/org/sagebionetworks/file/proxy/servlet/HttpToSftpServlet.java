@@ -31,12 +31,6 @@ import com.google.inject.Singleton;
  */
 @Singleton
 public class HttpToSftpServlet extends HttpServlet {
-	
-
-
-	public static final String GZIP = "gzip";
-
-
 
 	public static final long serialVersionUID = 1L;
 
@@ -54,6 +48,8 @@ public class HttpToSftpServlet extends HttpServlet {
 	public static final String KEY_CONTENT_TYPE = "contentType";
 	public static final String KEY_FILE_NAME = "fileName";
 	public static final String KEY_CONTENT_SIZE = "contentSize";
+	
+	public static final String GZIP = "gzip";
 
 	public static final String PATH_PREFIX = "/sftp/";
 
