@@ -9,11 +9,14 @@ import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.*;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URLEncoder;
+import java.util.zip.GZIPOutputStream;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -44,7 +47,8 @@ public class HttpToSftpServletTest {
 	String contentType;
 	String contentTypeEncoded;
 	long contentSize;
-	String contentMD5;
+	String contentMD5Hex;
+	String contentMD5Base64;
 	OutputStream out;
 	
 	HttpToSftpServlet servlet;
@@ -61,13 +65,14 @@ public class HttpToSftpServletTest {
 		contentSize = 9876L;
 		contentType = "text/html; charset=utf-8";
 		contentTypeEncoded = URLEncoder.encode(contentType, "UTF-8");
-		contentMD5 = "MD5base64";
+		contentMD5Hex = "c295c08ccfd979130729592bf936b85f";
+		contentMD5Base64 = Base64.encodeBase64String(Hex.decodeHex(contentMD5Hex.toCharArray()));
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
 		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
 		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
-		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5Hex);
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		when(mockResponse.getOutputStream()).thenReturn(mockStream);
@@ -100,7 +105,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 	}
 	
 	@Test
@@ -130,7 +135,7 @@ public class HttpToSftpServletTest {
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_CONTENT_SIZE).append("=").append(contentSize);
 		query.append("&").append(KEY_CONTENT_TYPE).append("=").append(contentTypeEncoded);
-		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5Hex);
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		// call under test
@@ -140,7 +145,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 	}
 	
 	@Test
@@ -149,7 +154,7 @@ public class HttpToSftpServletTest {
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
 		query.append("&").append(KEY_CONTENT_SIZE).append("=").append(contentSize);
-		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5);
+		query.append("&").append(KEY_CONTENT_MD5).append("=").append(contentMD5Hex);
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		// call under test
@@ -159,7 +164,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 	}
 	
 	@Test
@@ -178,7 +183,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse, never()).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 	}
 	
 	@Test
@@ -211,7 +216,7 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 		
 		String expectedPath = "/pathStart/pathEnd";
 		verify(mockConnection).getFile(eq(expectedPath), any(OutputStream.class));
@@ -225,9 +230,46 @@ public class HttpToSftpServletTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
-		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
 		// The file should not be read with a head.
 		verify(mockConnection, never()).getFile(anyString(), any(OutputStream.class));
 	}
 
+	@Test
+	public void testIsGZIPRequest(){
+		// by default this is not a GZIP request
+		assertFalse(HttpToSftpServlet.isGZIPRequest(mockRequest));
+		// setup a GZIP request
+		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
+		assertTrue(HttpToSftpServlet.isGZIPRequest(mockRequest));
+	}
+	
+	@Test
+	public void testPrepareResponseGZIP() throws MalformedURLException, NotFoundException{
+		// setup a GZIP request
+		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
+		// call under test
+		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd",path);
+		// gzip content encoding should be used.
+		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
+	}
+	
+	@Test
+	public void testDoGetGZIP() throws Exception {
+		// setup a GZIP request
+		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
+		//call under test
+		servlet.doGet(mockRequest, mockResponse);
+		// All of the headers should be added.
+		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
+		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
+		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
+		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
+		
+		String expectedPath = "/pathStart/pathEnd";
+		// The file should be written to a GZIP
+		verify(mockConnection).getFile(eq(expectedPath), any(GZIPOutputStream.class));
+	}
 }
