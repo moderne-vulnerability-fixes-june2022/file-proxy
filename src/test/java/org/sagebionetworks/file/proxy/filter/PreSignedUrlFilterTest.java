@@ -3,7 +3,7 @@ package org.sagebionetworks.file.proxy.filter;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,6 +34,9 @@ public class PreSignedUrlFilterTest {
 	HttpServletResponse mockResponse;
 	@Mock
 	FilterChain mockFilterChain;
+	@Mock
+	SignatureCache mockSignatureCache;
+	
 	ByteArrayOutputStream outStream;
 	
 	HttpMethod method;
@@ -72,7 +75,7 @@ public class PreSignedUrlFilterTest {
 		when(mockResponse.getWriter()).thenReturn(new PrintWriter(outStream));
 		
 		// Filter under test.
-		filter = new PreSignedUrlFilter(mockConfig);
+		filter = new PreSignedUrlFilter(mockConfig, mockSignatureCache);
 	}
 	
 	@Test
@@ -81,6 +84,8 @@ public class PreSignedUrlFilterTest {
 		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
 		// success means doChain()
 		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
+		// The signature should be added to the cache
+		verify(mockSignatureCache).putSignature(anyString());
 		
 	}
 	
@@ -125,4 +130,8 @@ public class PreSignedUrlFilterTest {
 		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
 	}
 
+	@Test
+	public void testExpiredInCache(){
+		
+	}
 }

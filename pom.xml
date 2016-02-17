@@ -41,8 +41,13 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.sagebionetworks</groupId>
+			<artifactId>common-utilities</artifactId>
+			<version>1.0.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.sagebionetworks</groupId>
 			<artifactId>url-signer</artifactId>
-			<version>0.1.4</version>
+			<version>0.1.6</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.inject.extensions</groupId>
@@ -64,7 +69,7 @@
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
 			<version>1.9</version>
-		</dependency>		
+		</dependency>
 		<!-- jsch is to support SFTP -->
 		<dependency>
 			<groupId>com.jcraft</groupId>
