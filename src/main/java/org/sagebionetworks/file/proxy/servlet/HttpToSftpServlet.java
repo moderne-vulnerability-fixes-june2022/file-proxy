@@ -4,12 +4,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.util.LinkedHashMap;
+import java.util.zip.GZIPOutputStream;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.sagebionetworks.file.proxy.NotFoundException;
@@ -27,7 +31,7 @@ import com.google.inject.Singleton;
  */
 @Singleton
 public class HttpToSftpServlet extends HttpServlet {
-	
+
 	public static final long serialVersionUID = 1L;
 
 	private static final Logger log = LogManager
@@ -37,11 +41,15 @@ public class HttpToSftpServlet extends HttpServlet {
 	public static final String HEADER_CONTENT_DISPOSITION = "Content-Disposition";
 	public static final String HEADER_CONTENT_LENGTH = "Content-Length";
 	public static final String HEADER_CONTENT_MD5 = "Content-MD5";
+	public static final String HEADER_CONTENT_ENCODING = "Content-Encoding";
+	public static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
 
 	public static final String KEY_CONTENT_MD5 = "contentMD5";
 	public static final String KEY_CONTENT_TYPE = "contentType";
 	public static final String KEY_FILE_NAME = "fileName";
 	public static final String KEY_CONTENT_SIZE = "contentSize";
+	
+	public static final String GZIP = "gzip";
 
 	public static final String PATH_PREFIX = "/sftp/";
 
@@ -66,6 +74,11 @@ public class HttpToSftpServlet extends HttpServlet {
 				final String path = prepareResponse(request, response, connection);
 				// Write the file to the HTTP output stream
 				OutputStream out = response.getOutputStream();
+				if(isGZIPRequest(request)){
+					// Send compressed results.
+					out = new GZIPOutputStream(out);
+					log.info("Using compression for: "+path);
+				}
 				// proxy the file...
 				connection.getFile(path, out);
 				// done
@@ -145,12 +158,25 @@ public class HttpToSftpServlet extends HttpServlet {
 			response.setHeader(HEADER_CONTENT_TYPE, contentType);
 		}
 		if(md5 != null){
-			response.setHeader(HEADER_CONTENT_MD5, md5);
+			// The MD5 provide is in Hex and needs to be converted to base64
+			// https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+			try {
+				String md5Base65 = Base64.encodeBase64String(Hex.decodeHex(md5.toCharArray()));
+				response.setHeader(HEADER_CONTENT_MD5, md5Base65);
+			} catch (DecoderException e) {
+				log.info("Failed to convert MD5 hex :"+md5+" message: "+e.getMessage());
+			}
+
 		}
 		// Path excludes /sftp/
 		int index = urlData.getPath().indexOf(PATH_PREFIX);
 		if(index < 0){
 			throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
+		}
+		// Is the client requesting compression?
+		if(isGZIPRequest(request)){
+			// Will respond with GZIP result.
+			response.setHeader(HEADER_CONTENT_ENCODING, GZIP);
 		}
 		// The path of the file on the SFTP server.
 		String path = urlData.getPath().substring(index+PATH_PREFIX.length()-1);
@@ -159,6 +185,19 @@ public class HttpToSftpServlet extends HttpServlet {
 		// add the size header
 		response.setHeader(HEADER_CONTENT_LENGTH, Long.toString(contentLength));
 		return path;
+	}
+	
+	/**
+	 * Is this a GZIP request?
+	 * @param request
+	 * @return
+	 */
+	static boolean isGZIPRequest(HttpServletRequest request){
+		String acceptEncoding = request.getHeader(HEADER_ACCEPT_ENCODING);
+		if(acceptEncoding != null){
+			return acceptEncoding.contains(GZIP);
+		}
+		return false;
 	}
 	
 }

@@ -117,10 +117,6 @@ public class PreSignedUrlFilterTest {
 	
 	@Test
 	public void testDoFilterHEAD() throws IOException, ServletException{
-		// setup an expiration in the past
-		expiration = new Date(456L);
-		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
-		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
 		// setup a head call
 		when(mockRequest.getMethod()).thenReturn(HttpMethod.HEAD.name());
 		// call under test
