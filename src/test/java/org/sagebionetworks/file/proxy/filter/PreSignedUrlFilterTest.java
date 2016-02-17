@@ -86,7 +86,6 @@ public class PreSignedUrlFilterTest {
 		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
 		// The signature should be added to the cache
 		verify(mockSignatureCache).putSignature(anyString());
-		
 	}
 	
 	@Test
