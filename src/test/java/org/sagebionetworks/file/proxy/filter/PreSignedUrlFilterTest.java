@@ -89,11 +89,13 @@ public class PreSignedUrlFilterTest {
 	}
 	
 	@Test
-	public void testDoFilterExpired() throws IOException, ServletException{
+	public void testDoFilterExpiredNotCached() throws IOException, ServletException{
 		// setup an expiration in the past
 		expiration = new Date(456L);
 		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
 		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
+		// set not in the cache
+		when(mockSignatureCache.containsWithRefresh(anyString())).thenReturn(false);
 		// call under test
 		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
 		verify(mockFilterChain, never()).doFilter(mockRequest, mockResponse);
@@ -130,7 +132,18 @@ public class PreSignedUrlFilterTest {
 	}
 
 	@Test
-	public void testExpiredInCache(){
-		
+	public void testExpiredInCache() throws Exception {
+		// setup an expiration in the past
+		expiration = new Date(456L);
+		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
+		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
+		// Setup the cache to have the signature.  This should allow the call to go through
+		when(mockSignatureCache.containsWithRefresh(anyString())).thenReturn(true);
+
+		// call under test
+		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
+		// The call should pass to the chain since the signature was in the cache.
+		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
 	}
+	
 }
