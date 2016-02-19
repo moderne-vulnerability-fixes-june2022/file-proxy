@@ -105,7 +105,7 @@ public class HttpToSftpServletTest {
 		// call under test
 		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
 		assertEquals("/pathStart/pathEnd", desc.getPath());
-		assertFalse(desc.isUseGZIP());
+		assertFalse(desc.isGZIP());
 		assertEquals(contentSize, desc.getFileSize());
 		
 		// four headers should be added
@@ -245,12 +245,45 @@ public class HttpToSftpServletTest {
 	}
 
 	@Test
+	public void testIsGZIPRequestNoAcceptHeader(){
+		String contentType = "text/plain";
+		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
+		// call under test
+		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		assertFalse(isGZIP);
+	}
+	
+	@Test
 	public void testIsGZIPRequest(){
-		// by default this is not a GZIP request
-		assertFalse(HttpToSftpServlet.isGZIPRequest(mockRequest));
+		String contentType = "text/plain";
+		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
-		assertTrue(HttpToSftpServlet.isGZIPRequest(mockRequest));
+		// call under test
+		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		assertTrue(isGZIP);
+	}
+	
+	@Test
+	public void testIsGZIPRequestBinary(){
+		String contentType = "application/octet-stream";
+		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
+		// setup a GZIP request
+		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
+		// call under test
+		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		assertFalse(isGZIP);
+	}
+	
+	@Test
+	public void testIsGZIPRequestTooSmall(){
+		String contentType = "text/plain";
+		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES-1;
+		// setup a GZIP request
+		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
+		// call under test
+		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		assertFalse(isGZIP);
 	}
 	
 	@Test

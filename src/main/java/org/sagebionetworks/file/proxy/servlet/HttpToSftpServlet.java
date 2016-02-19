@@ -33,6 +33,10 @@ import com.google.inject.Singleton;
 @Singleton
 public class HttpToSftpServlet extends HttpServlet {
 
+	public static final int MIN_COMPRESSION_FILE_SIZE_BYES = 5000;
+
+	public static final String TEXT_PREFIX = "text/";
+
 	public static final long serialVersionUID = 1L;
 
 	private static final Logger log = LogManager
@@ -80,7 +84,7 @@ public class HttpToSftpServlet extends HttpServlet {
 				final RequestDescription desc = prepareResponse(request, response, connection);
 				// Write the file to the HTTP output stream
 				OutputStream out = response.getOutputStream();
-				if(desc.isUseGZIP()){
+				if(desc.isGZIP()){
 					// Send compressed results.
 					out = new GZIPOutputStream(out);
 					log.info("Using compression for: "+desc.getPath());
@@ -198,12 +202,6 @@ public class HttpToSftpServlet extends HttpServlet {
 		if(index < 0){
 			throw new IllegalArgumentException("Path does not contain: "+PATH_PREFIX);
 		}
-		// Is the client requesting compression?
-		if(isGZIPRequest(request)){
-			// Will respond with GZIP result.
-			response.setHeader(HEADER_CONTENT_ENCODING, GZIP);
-			description.setUseGZIP(true);
-		}
 		// Notify clients that byte serving is supported (https://en.wikipedia.org/wiki/Byte_serving)
 		response.setHeader(HEADER_ACCEPT_RANGES, BYTES);
 		
@@ -213,6 +211,14 @@ public class HttpToSftpServlet extends HttpServlet {
 		// get the file size.
 		long fileSize = connection.getFileSize(path);
 		description.setFileSize(fileSize);
+		
+		// Is the client requesting compression?
+		if(isGZIPRequest(request, contentType, fileSize)){
+			// Will respond with GZIP result.
+			response.setHeader(HEADER_CONTENT_ENCODING, GZIP);
+			description.setIsGZIP(true);
+		}
+		
 		// Setup content size and content range.
 		prepareContentHeaders(request, response, description);
 	
@@ -267,10 +273,13 @@ public class HttpToSftpServlet extends HttpServlet {
 	 * @param request
 	 * @return
 	 */
-	static boolean isGZIPRequest(HttpServletRequest request){
+	static boolean isGZIPRequest(HttpServletRequest request, String contentType, long fileSize){
 		String acceptEncoding = request.getHeader(HEADER_ACCEPT_ENCODING);
-		if(acceptEncoding != null){
-			return acceptEncoding.contains(GZIP);
+		if(acceptEncoding != null && contentType != null){
+			if(contentType.contains(TEXT_PREFIX) && fileSize > MIN_COMPRESSION_FILE_SIZE_BYES){
+				// text file over 5K bytes.
+				return acceptEncoding.contains(GZIP);
+			}
 		}
 		return false;
 	}
