@@ -1,6 +1,5 @@
 package org.sagebionetworks.file.proxy.sftp;
 
-import org.sagebionetworks.file.proxy.NotFoundException;
 
 public interface SftpConnectionManager {
 
@@ -9,7 +8,7 @@ public interface SftpConnectionManager {
 	 * The passed connection is only valid for the duration of this call.
 	 * 
 	 * @param handler
-	 * @throws NotFoundException
+	 * @throws Exception
 	 */
-	public void connect(ConnectionHandler handler) throws NotFoundException;
+	public void connect(ConnectionHandler handler) throws Exception;
 }

@@ -19,15 +19,17 @@ public interface SftpConnection {
 	void getFile(String path, OutputStream stream) throws NotFoundException;
 	
 	/**
+	 * Request a range of bytes from the given file.
 	 * 
 	 * @param path
 	 * @param stream
-	 * @param limit
-	 * @param offset
-	 * @return
+	 * @param startByteIndex The index of the start of the byte range to be read.
+	 * @param endByteIndex The index of the end of the byte range to be read.
+	 * @return True if the end of the file was reached with this read.
+	 * 
 	 * @throws NotFoundException
 	 */
-	boolean getFileRange(String path, OutputStream stream, long limit, long offset) throws NotFoundException;
+	boolean getFileRange(String path, OutputStream stream, long startByteIndex, long endByteIndex) throws NotFoundException;
 
 	/**
 	 * Get the size of a given file.

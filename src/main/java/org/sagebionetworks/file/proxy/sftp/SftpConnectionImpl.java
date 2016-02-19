@@ -66,50 +66,57 @@ public class SftpConnectionImpl implements SftpConnection {
 
 	@Override
 	public boolean getFileRange(final String path, final OutputStream stream,
-			final long limit, final long offset) throws NotFoundException {
+			final long startByteIndex, final long endByteIndex) throws NotFoundException {
 
 		try {
-			sftpChannel.get(path, stream, new CountingMonitor(limit), ChannelSftp.RESUME, offset);
+			CountingMonitor monitor = new CountingMonitor(endByteIndex);
+			sftpChannel.get(path, stream, monitor, ChannelSftp.RESUME, startByteIndex);
+			return monitor.wasEndReached();
 		} catch (Exception e) {
 			handleNotFound(path, e);
 			// convert to a runtime
 			throw new RuntimeException(e);
 		}
-		return false;
 	}
 
 	/**
-	 * A simple monitor that counts the bytes read. When the limit is exceeded
-	 * {@link #count(long)} will return false.
-	 *
+	 * A simple monitor that tracks the current read index. When the current
+	 * index exceeds the maximum index, the {@link #count(long)} will return
+	 * false signaling the end of the current read.
+	 * 
 	 */
 	private static class CountingMonitor implements SftpProgressMonitor {
 
-		long count;
-		long limit;
+		long currentIndex;
+		long maxIndex;
+		long fileSize;
 
-		public CountingMonitor(long limit) {
+		public CountingMonitor(long maxIndex) {
 			super();
-			this.limit = limit;
-			this.count = 0;
+			this.maxIndex = maxIndex;
+			this.currentIndex = 0;
 		}
 
 		@Override
 		public boolean count(long count) {
-			this.count += count;
-			return isUnderLimit();
+			this.currentIndex += count;
+			// Return false when the limit has been read.
+			return currentIndex < this.maxIndex;
 		}
 
 		/**
-		 * Is the current count under the limit.
+		 * Did the current index reach the end of the file?
+		 * 
 		 * @return
 		 */
-		public boolean isUnderLimit() {
-			return this.count < this.limit;
+		public boolean wasEndReached() {
+			return this.currentIndex >= this.fileSize;
 		}
 
 		@Override
 		public void init(int op, String src, String dest, long max) {
+			// capture the file size
+			this.fileSize = max;
 		}
 
 		@Override

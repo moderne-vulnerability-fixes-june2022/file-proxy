@@ -2,12 +2,16 @@ package org.sagebionetworks.file.proxy.servlet;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.*;
 
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URLEncoder;
 import java.util.zip.GZIPOutputStream;
 
@@ -24,6 +28,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.sagebionetworks.file.proxy.NotFoundException;
+import org.sagebionetworks.file.proxy.RangeNotSatisfiable;
 import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
 import org.sagebionetworks.file.proxy.sftp.SftpConnection;
 import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
@@ -96,41 +101,45 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testPrepareResponse() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponse() throws Exception {
 		// call under test
-		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
-		assertEquals("/pathStart/pathEnd",path);
+		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd", desc.getPath());
+		assertFalse(desc.isUseGZIP());
+		assertEquals(contentSize, desc.getFileSize());
 		
 		// four headers should be added
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
+		// also support for byte serving
+		verify(mockResponse).setHeader(HEADER_ACCEPT_RANGES, BYTES);
 	}
 	
 	@Test
-	public void testPrepareResponseWithPrefix() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseWithPrefix() throws Exception {
 		// The 'prefix' should be ignored.
 		StringBuffer urlBuffer = new StringBuffer();
 		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
 		// call under test
-		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
-		assertEquals("/pathStart/pathEnd",path);
+		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd",desc.getPath());
 	}
 	
 	@Test
-	public void testPrepareResponseWithSftpInPath() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseWithSftpInPath() throws Exception {
 		// The 'prefix' should be ignored.
 		StringBuffer urlBuffer = new StringBuffer();
 		urlBuffer.append("http://host.org/sftp/pathStart/sftp/pathEnd");
 		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
 		// call under test
-		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
-		assertEquals("/pathStart/sftp/pathEnd",path);
+		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/sftp/pathEnd",desc.getPath());
 	}
 	
 	@Test
-	public void testPrepareResponseNoName() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseNoName() throws Exception {
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_CONTENT_SIZE).append("=").append(contentSize);
@@ -149,7 +158,7 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testPrepareResponseNoContentType() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseNoContentType() throws Exception {
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
@@ -168,7 +177,7 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testPrepareResponseNoMD5() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseNoMD5() throws Exception {
 		
 		StringBuilder query = new StringBuilder();
 		query.append(KEY_FILE_NAME).append("=").append(fileName);
@@ -245,12 +254,12 @@ public class HttpToSftpServletTest {
 	}
 	
 	@Test
-	public void testPrepareResponseGZIP() throws MalformedURLException, NotFoundException{
+	public void testPrepareResponseGZIP() throws Exception {
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
 		// call under test
-		String path = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
-		assertEquals("/pathStart/pathEnd",path);
+		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		assertEquals("/pathStart/pathEnd",desc.getPath());
 		// gzip content encoding should be used.
 		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
 	}
@@ -271,5 +280,151 @@ public class HttpToSftpServletTest {
 		String expectedPath = "/pathStart/pathEnd";
 		// The file should be written to a GZIP
 		verify(mockConnection).getFile(eq(expectedPath), any(GZIPOutputStream.class));
+	}
+	
+	@Test
+	public void testIsRangeRequestFalse() throws Exception {
+		long fileSize = 123;
+		// default request is not a range request
+		assertEquals(null, HttpToSftpServlet.isRangeRequest(mockRequest, fileSize));
+	}
+	
+	@Test
+	public void testIsRangeRequestTrue() throws Exception {
+		// setup a range request
+		String rangeString = "bytes=1-";
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		// Setup a range request
+		long fileSize = 123;
+		// default request is not a range request
+		RangeValue exected = new RangeValue(rangeString);
+		// call under test
+		RangeValue result = HttpToSftpServlet.isRangeRequest(mockRequest, fileSize);
+		//call under test.
+		assertEquals(exected, result);
+	}
+	
+	@Test
+	public void testIsRangeRequestRangeNotSatisfiable(){
+		// setup an invalid range
+		String rangeString = "bytes=100-0";
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		// Setup a range request
+		long fileSize = 123;
+		try {
+			// call under test
+			HttpToSftpServlet.isRangeRequest(mockRequest, fileSize);
+			fail("Should throw an exception");
+		} catch (RangeNotSatisfiable e) {
+			// expected
+			assertEquals(rangeString, e.getMessage());
+			assertEquals(fileSize, e.getFileSize());
+		}
+	}
+	
+	@Test
+	public void testPrepareContentHeadersWithRangeUnbounded() throws Exception {
+		// setup a range request
+		String rangeString = "bytes=2-";
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+		// verify the headers are set as expected.
+		verify(mockResponse).setHeader(HEADER_CONTENT_RANGE, "bytes 2-443/444");
+		// The length is the size of the range.
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+(443-2+1));
+		assertNotNull(desc.getRange());
+		assertEquals(2, desc.getRange().getFirstBytePosition());
+		assertEquals(443, desc.getRange().getLastBytePosition());
+	}
+	
+	@Test
+	public void testPrepareContentHeadersWithRangeBoundex() throws Exception {
+		// setup a range request
+		String rangeString = "bytes=25-99";
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+		// verify the headers are set as expected.
+		verify(mockResponse).setHeader(HEADER_CONTENT_RANGE, "bytes 25-99/444");
+		// The length is the size of the range.
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+(99-25+1));
+		assertNotNull(desc.getRange());
+		assertEquals(25, desc.getRange().getFirstBytePosition());
+		assertEquals(99, desc.getRange().getLastBytePosition());
+	}
+	
+	@Test
+	public void testPrepareContentHeadersWithRangeFullFile() throws Exception {
+		// setup a range request
+		String rangeString = "bytes=0-";
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+		// verify the headers are set as expected.
+		verify(mockResponse).setHeader(HEADER_CONTENT_RANGE, "bytes 0-443/444");
+		// The length is the entire file size
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+fileSize);
+		assertNotNull(desc.getRange());
+		assertEquals(0, desc.getRange().getFirstBytePosition());
+		assertEquals(443, desc.getRange().getLastBytePosition());
+	}
+	
+	@Test
+	public void testPrepareContentHeadersWithRangeLastMax() throws Exception {
+		// setup a range request
+		String rangeString = "bytes=15-"+Long.MAX_VALUE;
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+		// verify the headers are set as expected.
+		verify(mockResponse).setHeader(HEADER_CONTENT_RANGE, "bytes 15-443/444");
+		// The length is the size of the range.
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+(443-15+1));
+		assertNotNull(desc.getRange());
+		assertEquals(15, desc.getRange().getFirstBytePosition());
+		assertEquals(443, desc.getRange().getLastBytePosition());
+	}
+	
+	@Test(expected=RangeNotSatisfiable.class)
+	public void testPrepareContentHeadersRangeNotSatisfiable() throws Exception {
+		// range with invalid units
+		String rangeString = "meters=15-16";
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+	}
+	
+	@Test
+	public void testPrepareContentHeadersNoRange() throws Exception {
+		// setup a request without a range.
+		String rangeString = null;
+		long fileSize = 444;
+		when(mockRequest.getHeader(HEADER_RANGE)).thenReturn(rangeString);
+		RequestDescription desc = new RequestDescription();
+		desc.setFileSize(fileSize);
+		// call under test
+		prepareContentHeaders(mockRequest, mockResponse, desc);
+		// verify the headers are set as expected.
+		verify(mockResponse, never()).setHeader(eq(HEADER_CONTENT_RANGE), anyString());
+		// The length is the size of the file
+		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+fileSize);
+		// range should not be set for this case.
+		assertEquals(null, desc.getRange());
 	}
 }
