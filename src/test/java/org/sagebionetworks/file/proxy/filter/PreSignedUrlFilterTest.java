@@ -3,7 +3,7 @@ package org.sagebionetworks.file.proxy.filter;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,6 +34,9 @@ public class PreSignedUrlFilterTest {
 	HttpServletResponse mockResponse;
 	@Mock
 	FilterChain mockFilterChain;
+	@Mock
+	SignatureCache mockSignatureCache;
+	
 	ByteArrayOutputStream outStream;
 	
 	HttpMethod method;
@@ -72,7 +75,7 @@ public class PreSignedUrlFilterTest {
 		when(mockResponse.getWriter()).thenReturn(new PrintWriter(outStream));
 		
 		// Filter under test.
-		filter = new PreSignedUrlFilter(mockConfig);
+		filter = new PreSignedUrlFilter(mockConfig, mockSignatureCache);
 	}
 	
 	@Test
@@ -81,15 +84,18 @@ public class PreSignedUrlFilterTest {
 		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
 		// success means doChain()
 		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
-		
+		// The signature should be added to the cache
+		verify(mockSignatureCache).putSignature(anyString());
 	}
 	
 	@Test
-	public void testDoFilterExpired() throws IOException, ServletException{
+	public void testDoFilterExpiredNotCached() throws IOException, ServletException{
 		// setup an expiration in the past
 		expiration = new Date(456L);
 		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
 		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
+		// set not in the cache
+		when(mockSignatureCache.containsWithRefresh(anyString())).thenReturn(false);
 		// call under test
 		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
 		verify(mockFilterChain, never()).doFilter(mockRequest, mockResponse);
@@ -125,4 +131,19 @@ public class PreSignedUrlFilterTest {
 		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
 	}
 
+	@Test
+	public void testExpiredInCache() throws Exception {
+		// setup an expiration in the past
+		expiration = new Date(456L);
+		signedUrl = UrlSignerUtils.generatePreSignedURL(method, unsignedUrl, expiration, credentials);
+		when(mockRequest.getQueryString()).thenReturn(signedUrl.getQuery());
+		// Setup the cache to have the signature.  This should allow the call to go through
+		when(mockSignatureCache.containsWithRefresh(anyString())).thenReturn(true);
+
+		// call under test
+		filter.doFilter(mockRequest, mockResponse, mockFilterChain);
+		// The call should pass to the chain since the signature was in the cache.
+		verify(mockFilterChain).doFilter(mockRequest, mockResponse);
+	}
+	
 }

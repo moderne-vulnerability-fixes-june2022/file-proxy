@@ -14,10 +14,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.sagebionetworks.common.util.Clock;
 import org.sagebionetworks.file.proxy.config.Configuration;
 import org.sagebionetworks.url.HttpMethod;
 import org.sagebionetworks.url.SignatureExpiredException;
 import org.sagebionetworks.url.SignatureMismatchException;
+import org.sagebionetworks.url.UrlData;
 import org.sagebionetworks.url.UrlSignerUtils;
 
 import com.google.inject.Inject;
@@ -34,10 +36,14 @@ public class PreSignedUrlFilter implements Filter{
 	
 	private static final String TEXT_PLAIN = "text/plain";
 	final Configuration config;
+	final SignatureCache signatureCache;
+	
+
 	
 	@Inject
-	public PreSignedUrlFilter(final Configuration config){
+	public PreSignedUrlFilter(final Configuration config, SignatureCache signatureCache){
 		this.config = config;
+		this.signatureCache = signatureCache;
 	}
 
 
@@ -69,15 +75,23 @@ public class PreSignedUrlFilter implements Filter{
 				// treat head requests the same as a GET
 				method = HttpMethod.GET;
 			}
-			UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
+			String signature = UrlSignerUtils.validatePresignedURL(method, url, config.getUrlSignerSecretKey());
+			// add this signature to the cache
+			this.signatureCache.putSignature(signature);
 			// signature is valid or not required so proceed.
 			chain.doFilter(httpRequest, httpResponse);
 		} catch (SignatureMismatchException e) {
 			// Signature is not valid
 			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, url, httpResponse, e);
 		} catch (SignatureExpiredException e) {
-			// Signature is not valid
-			prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, url, httpResponse, e);
+			// The signature has expires. If it is in the cache the the client past
+			if(this.signatureCache.containsWithRefresh(e.getSignature())){
+				// signature is in the cache so it is still valid.
+				chain.doFilter(httpRequest, httpResponse);
+			}else{
+				// Signature is not valid
+				prepareErrorResponse(HttpServletResponse.SC_UNAUTHORIZED, url, httpResponse, e);
+			}
 		}
 	}
 	
