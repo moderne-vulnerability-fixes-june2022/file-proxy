@@ -1,7 +1,9 @@
 package org.sagebionetworks.file.proxy.filter;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.sagebionetworks.common.util.Clock;
 
@@ -66,10 +68,12 @@ public class SignatureCache {
 	 */
 	private void removeExpired() {
 		long now = clock.currentTimeMillis();
-		for (String signature : this.cache.keySet()) {
-			long expires = cache.get(signature);
+		Iterator<Entry<String, Long>> it =this.cache.entrySet().iterator();
+		while(it.hasNext()){
+			Entry<String, Long> entry = it.next();
+			long expires = entry.getValue();
 			if (now > expires) {
-				cache.remove(signature);
+				it.remove();
 			}
 		}
 	}
