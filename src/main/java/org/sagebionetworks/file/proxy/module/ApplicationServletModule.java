@@ -1,13 +1,13 @@
 package org.sagebionetworks.file.proxy.module;
 
-import org.sagebionetworks.file.proxy.LocalConnectionManagerImpl;
+import org.sagebionetworks.file.proxy.LocalConnectionManager;
 import org.sagebionetworks.file.proxy.filter.CorsFilter;
 import org.sagebionetworks.file.proxy.filter.HealthCheckFilter;
 import org.sagebionetworks.file.proxy.filter.PreSignedUrlFilter;
 import org.sagebionetworks.file.proxy.servlet.FileControllerImpl;
 import org.sagebionetworks.file.proxy.servlet.HttpToLocalServlet;
 import org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet;
-import org.sagebionetworks.file.proxy.sftp.SftpConnectionManagerImpl;
+import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
 
 import com.google.inject.Provides;
 import com.google.inject.servlet.ServletModule;
@@ -15,7 +15,7 @@ import com.google.inject.servlet.ServletModule;
 public class ApplicationServletModule extends ServletModule {
 	
 	public static final String SFTP_PATH_PREFIX = "/sftp/";
-	public static final String LOCAL_PATH_PREFIX = "/local/";
+	public static final String LOCAL_PATH_PREFIX = "/proxy-local/";
 
 
 	@Override
@@ -27,9 +27,9 @@ public class ApplicationServletModule extends ServletModule {
 		// All calls must go through the pre-signed URL Filter.
 		filter("/*").through(PreSignedUrlFilter.class);
 		// HTTP to SFTP calls.
-		serve("/sftp/*").with(HttpToSftpServlet.class);
+		serve(SFTP_PATH_PREFIX+"*").with(HttpToSftpServlet.class);
 		// HTTP to local calls
-		serve("/local/*").with(HttpToLocalServlet.class);
+		serve(LOCAL_PATH_PREFIX+"*").with(HttpToLocalServlet.class);
 	}
 	
 	/**
@@ -38,7 +38,7 @@ public class ApplicationServletModule extends ServletModule {
 	 * @return
 	 */
 	@Provides
-	HttpToSftpServlet provideHttpToSftpServlet(SftpConnectionManagerImpl manager){
+	HttpToSftpServlet provideHttpToSftpServlet(SftpConnectionManager manager){
 		return new HttpToSftpServlet(new FileControllerImpl(manager, SFTP_PATH_PREFIX));
 	}
 	
@@ -48,7 +48,7 @@ public class ApplicationServletModule extends ServletModule {
 	 * @return
 	 */
 	@Provides
-	HttpToLocalServlet provideHttpToLocalServlet(LocalConnectionManagerImpl manager){
+	HttpToLocalServlet provideHttpToLocalServlet(LocalConnectionManager manager){
 		return new HttpToLocalServlet(new FileControllerImpl(manager, LOCAL_PATH_PREFIX));
 	}
 

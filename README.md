@@ -4,14 +4,15 @@ Proxy for file upload and download.
 ## Configuration
 The following properties must be provided to the application to run:
 
-| Property Name | Description |
-| --- | --- |
-| org.sagebionetworks.url.signer.secret.key | The credentials used to sign pre-signed URLs.  The credentials should match the value of the 'ProxyStorageLocationSettings.secretKey' set in Synapse. |
-| org.sagebionetworks.sftp.username | The SFTP service username. |
-| org.sagebionetworks.sftp.password | The SFTP service password. |
-| org.sagebionetworks.sftp.host | The SFTP server host. |
-| org.sagebionetworks.sftp.port | The SFTP server port. |
-The example below shows how to start the proxy confiugred with these values.
+| Property Name | Required For | Description |
+| --- | --- | --- |
+| org.sagebionetworks.url.signer.secret.key | All | The credentials used to sign pre-signed URLs.  The credentials should match the value of the 'ProxyStorageLocationSettings.secretKey' set in Synapse. |
+| org.sagebionetworks.sftp.username | SFTP only | The SFTP service username. |
+| org.sagebionetworks.sftp.password | SFTP only |The SFTP service password. |
+| org.sagebionetworks.sftp.host | SFTP only | The SFTP server host. |
+| org.sagebionetworks.sftp.port | SFTP only | The SFTP server port. |
+| org.sagebionetworks.local.path.prefix | proxy-local only | Required to server files locally. Callers will request files by providing a relative path. An additional path prefix is needed to resolve these relative paths to actual files. This configuration provides this path prefix. |
+The example below shows how to start the proxy configured with these values.
 
 ## Example
 In the following example, the goal is to setup a new ProxyFileHandle to represent a file that resides on a SFTP server.  After everything is setup correctly, users should be able to download the file from any Synapse client in the same way as any other file in Synapse.

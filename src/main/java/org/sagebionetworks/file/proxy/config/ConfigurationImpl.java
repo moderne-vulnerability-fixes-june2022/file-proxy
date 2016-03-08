@@ -45,6 +45,11 @@ public class ConfigurationImpl implements Configuration {
 		return Integer.parseInt(getProperty("org.sagebionetworks.sftp.port"));
 	}
 	
+	@Override
+	public String getLocalPathPrefix() {
+		return getProperty("org.sagebionetworks.local.path.prefix");
+	}
+	
 	
 	/**
 	 * Get a property value given its key.

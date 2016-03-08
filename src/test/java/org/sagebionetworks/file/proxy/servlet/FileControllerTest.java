@@ -47,10 +47,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.RangeNotSatisfiable;
 import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
-import org.sagebionetworks.file.proxy.sftp.FileConnection;
 import org.sagebionetworks.file.proxy.sftp.FileConnectionManager;
 
 public class FileControllerTest {

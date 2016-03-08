@@ -15,7 +15,7 @@ import com.jcraft.jsch.Session;
  * Manages a connection to SFTP server.
  *
  */
-public class SftpConnectionManagerImpl implements FileConnectionManager {
+public class SftpConnectionManager implements FileConnectionManager {
 	
 	public static final String NO_SUCH_FILE = "No such file";
 
@@ -25,7 +25,7 @@ public class SftpConnectionManagerImpl implements FileConnectionManager {
 	final JcraftFactory jcraftFactory;
 	
 	@Inject
-	public SftpConnectionManagerImpl(final Configuration config, JcraftFactory jcraftFactory){
+	public SftpConnectionManager(final Configuration config, JcraftFactory jcraftFactory){
 		this.config = config;
 		this.jcraftFactory = jcraftFactory;
 	}

@@ -15,10 +15,10 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.RangeNotSatisfiable;
 import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
-import org.sagebionetworks.file.proxy.sftp.FileConnection;
 import org.sagebionetworks.file.proxy.sftp.FileConnectionManager;
 import org.sagebionetworks.url.UrlData;
 
@@ -72,7 +72,7 @@ public class FileControllerImpl implements FileController {
 	@Override
 	public void doGet(final HttpServletRequest request,
 			final HttpServletResponse response) throws ServletException, IOException {
-		// Connect to SFTP server.
+		// Connect to file server.
 		doConnection(request, response, new ConnectionHandler() {
 			
 			@Override
@@ -121,7 +121,7 @@ public class FileControllerImpl implements FileController {
 	}
 	
 	/**
-	 * General SFTP connection with error handling.
+	 * General file connection with error handling.
 	 * @param request
 	 * @param response
 	 * @param handler
@@ -194,20 +194,21 @@ public class FileControllerImpl implements FileController {
 			}
 
 		}
-		// Path excludes /sftp/
+		// Path excludes pathPrefix
 		int index = urlData.getPath().indexOf(pathPrefix);
 		if(index < 0){
 			throw new IllegalArgumentException("Path does not contain: "+pathPrefix);
 		}
-		// Notify clients that byte serving is supported (https://en.wikipedia.org/wiki/Byte_serving)
-		response.setHeader(HEADER_ACCEPT_RANGES, BYTES);
-		
+	
 		// The path of the file on the SFTP server.
 		String path = urlData.getPath().substring(index+pathPrefix.length()-1);
 		description.setPath(path);
 		// get the file size.
 		long fileSize = connection.getFileSize(path);
 		description.setFileSize(fileSize);
+		
+		// Notify clients that byte serving is supported (https://en.wikipedia.org/wiki/Byte_serving)
+		response.setHeader(HEADER_ACCEPT_RANGES, BYTES);
 		
 		// Is the client requesting compression?
 		if(isGZIPRequest(request, contentType, fileSize)){

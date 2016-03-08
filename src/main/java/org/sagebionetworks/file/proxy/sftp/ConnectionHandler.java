@@ -2,6 +2,7 @@ package org.sagebionetworks.file.proxy.sftp;
 
 import java.io.IOException;
 
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 
 /**

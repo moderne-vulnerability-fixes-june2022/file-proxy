@@ -1,6 +1,10 @@
 package org.sagebionetworks.file.proxy.sftp;
 
 
+/**
+ * Abstraction for file connection management.
+ *
+ */
 public interface FileConnectionManager {
 
 	/**

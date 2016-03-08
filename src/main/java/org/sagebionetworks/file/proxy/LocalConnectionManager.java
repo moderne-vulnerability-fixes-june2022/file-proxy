@@ -6,22 +6,27 @@ import org.sagebionetworks.file.proxy.sftp.FileConnectionManager;
 
 import com.google.inject.Inject;
 
-public class LocalConnectionManagerImpl implements FileConnectionManager {
+/**
+ * Connection manager for local files.
+ *
+ */
+public class LocalConnectionManager implements FileConnectionManager {
 	
 	final Configuration config;
 
 
 	@Inject
-	public LocalConnectionManagerImpl(Configuration config) {
-		super();
+	public LocalConnectionManager(Configuration config) {
 		this.config = config;
 	}
 
 
 	@Override
 	public void connect(ConnectionHandler handler) throws Exception {
-		// TODO Auto-generated method stub
-
+		// path prefix is used to resolve relative path requests to actual files.
+		String pathPrefix = config.getLocalPathPrefix();
+		LocalFileConnection connection = new LocalFileConnection(pathPrefix);
+		handler.execute(connection);
 	}
 
 }

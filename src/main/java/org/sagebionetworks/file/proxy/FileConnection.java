@@ -1,8 +1,7 @@
-package org.sagebionetworks.file.proxy.sftp;
+package org.sagebionetworks.file.proxy;
 
+import java.io.IOException;
 import java.io.OutputStream;
-
-import org.sagebionetworks.file.proxy.NotFoundException;
 
 /**
  * Abstraction of all operations that can be performed on a file connection.
@@ -15,8 +14,9 @@ public interface FileConnection {
 	 * 
 	 * @param path
 	 * @param stream
+	 * @throws IOException 
 	 */
-	void getFile(String path, OutputStream stream) throws NotFoundException;
+	void getFile(String path, OutputStream stream) throws NotFoundException, IOException;
 	
 	/**
 	 * Request a range of bytes from the given file.
@@ -28,8 +28,9 @@ public interface FileConnection {
 	 * @return True if the end of the file was reached with this read.
 	 * 
 	 * @throws NotFoundException
+	 * @throws IOException 
 	 */
-	boolean getFileRange(String path, OutputStream stream, long startByteIndex, long endByteIndex) throws NotFoundException;
+	boolean getFileRange(String path, OutputStream stream, long startByteIndex, long endByteIndex) throws NotFoundException, IOException;
 
 	/**
 	 * Get the size of a given file.
