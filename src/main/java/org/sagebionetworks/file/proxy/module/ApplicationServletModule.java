@@ -15,7 +15,7 @@ import com.google.inject.servlet.ServletModule;
 public class ApplicationServletModule extends ServletModule {
 	
 	public static final String SFTP_PATH_PREFIX = "/sftp/";
-	public static final String LOCAL_PATH_PREFIX = "/proxy-local/";
+	public static final String LOCAL_PATH_PREFIX = "/proxylocal/";
 
 
 	@Override
