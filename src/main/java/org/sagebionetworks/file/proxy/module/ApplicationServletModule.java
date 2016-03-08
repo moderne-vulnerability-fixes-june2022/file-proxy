@@ -1,13 +1,21 @@
 package org.sagebionetworks.file.proxy.module;
 
+import org.sagebionetworks.file.proxy.LocalConnectionManagerImpl;
 import org.sagebionetworks.file.proxy.filter.CorsFilter;
 import org.sagebionetworks.file.proxy.filter.HealthCheckFilter;
 import org.sagebionetworks.file.proxy.filter.PreSignedUrlFilter;
+import org.sagebionetworks.file.proxy.servlet.FileControllerImpl;
+import org.sagebionetworks.file.proxy.servlet.HttpToLocalServlet;
 import org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet;
+import org.sagebionetworks.file.proxy.sftp.SftpConnectionManagerImpl;
 
+import com.google.inject.Provides;
 import com.google.inject.servlet.ServletModule;
 
 public class ApplicationServletModule extends ServletModule {
+	
+	public static final String SFTP_PATH_PREFIX = "/sftp/";
+	public static final String LOCAL_PATH_PREFIX = "/local/";
 
 
 	@Override
@@ -20,6 +28,28 @@ public class ApplicationServletModule extends ServletModule {
 		filter("/*").through(PreSignedUrlFilter.class);
 		// HTTP to SFTP calls.
 		serve("/sftp/*").with(HttpToSftpServlet.class);
+		// HTTP to local calls
+		serve("/local/*").with(HttpToLocalServlet.class);
+	}
+	
+	/**
+	 * The HTTP to SFTP servlet depends on sftp connection manager.
+	 * @param manager
+	 * @return
+	 */
+	@Provides
+	HttpToSftpServlet provideHttpToSftpServlet(SftpConnectionManagerImpl manager){
+		return new HttpToSftpServlet(new FileControllerImpl(manager, SFTP_PATH_PREFIX));
+	}
+	
+	/**
+	 * HTTP to local servlet depends on local connection manager.
+	 * @param manager
+	 * @return
+	 */
+	@Provides
+	HttpToLocalServlet provideHttpToLocalServlet(LocalConnectionManagerImpl manager){
+		return new HttpToLocalServlet(new FileControllerImpl(manager, LOCAL_PATH_PREFIX));
 	}
 
 }

@@ -8,7 +8,7 @@ import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpProgressMonitor;
 
-public class SftpConnectionImpl implements SftpConnection {
+public class SftpConnectionImpl implements FileConnection {
 
 	public static final String NO_SUCH_FILE = "No such file";
 

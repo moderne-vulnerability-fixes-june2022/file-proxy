@@ -1,10 +1,10 @@
 package org.sagebionetworks.file.proxy.sftp;
 
 
-public interface SftpConnectionManager {
+public interface FileConnectionManager {
 
 	/**
-	 * Make an SFTP connection and provide it to the passed handler.
+	 * Make an file connection and provide it to the passed handler.
 	 * The passed connection is only valid for the duration of this call.
 	 * 
 	 * @param handler

@@ -73,14 +73,14 @@ public class SftpConnectionManagerImplTest {
 		verify(mockChannel).connect();
 		verify(mockChannel).disconnect();
 		verify(mockSession).disconnect();
-		verify(mockHandler).execute(any(SftpConnection.class));
+		verify(mockHandler).execute(any(FileConnection.class));
 	}
 
 	@Test
 	public void testConnectHandlerError() throws NotFoundException, Exception {
 		// Setup a failure
 		doThrow(new SftpException(22, "Something went wrong"))
-				.when(mockHandler).execute(any(SftpConnection.class));
+				.when(mockHandler).execute(any(FileConnection.class));
 		// call under test
 		try {
 			manager.connect(mockHandler);
