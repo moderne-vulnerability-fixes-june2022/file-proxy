@@ -2,10 +2,11 @@ package org.sagebionetworks.file.proxy.sftp;
 
 import java.io.IOException;
 
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 
 /**
- * An abstraction for interacting with an SFTP connection.
+ * An abstraction for interacting with an file connection.
 
  *
  */
@@ -18,6 +19,6 @@ public interface ConnectionHandler {
 	 * @param connection
 	 * @throws IOException 
 	 */
-	public void execute(SftpConnection connection) throws NotFoundException, Exception;
+	public void execute(FileConnection connection) throws NotFoundException, Exception;
 
 }

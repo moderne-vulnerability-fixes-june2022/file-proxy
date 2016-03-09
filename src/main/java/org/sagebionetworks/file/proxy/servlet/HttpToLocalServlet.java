@@ -11,14 +11,14 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 @Singleton
-public class HttpToSftpServlet extends HttpServlet {
+public class HttpToLocalServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	FileController controller;
 
 	@Inject
-	public HttpToSftpServlet(FileController controller) {
+	public HttpToLocalServlet(FileController controller) {
 		this.controller = controller;
 	}
 
@@ -33,5 +33,6 @@ public class HttpToSftpServlet extends HttpServlet {
 			throws ServletException, IOException {
 		controller.doHead(request, response);
 	}
+
 
 }

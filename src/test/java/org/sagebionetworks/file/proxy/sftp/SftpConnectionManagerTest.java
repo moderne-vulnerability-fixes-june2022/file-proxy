@@ -14,6 +14,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.config.Configuration;
 
@@ -22,7 +23,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 
-public class SftpConnectionManagerImplTest {
+public class SftpConnectionManagerTest {
 	@Mock
 	Configuration mockConfig;
 	@Mock
@@ -36,7 +37,7 @@ public class SftpConnectionManagerImplTest {
 	@Mock
 	ConnectionHandler mockHandler;
 
-	SftpConnectionManagerImpl manager;
+	SftpConnectionManager manager;
 
 	String userName;
 	String password;
@@ -60,12 +61,11 @@ public class SftpConnectionManagerImplTest {
 		when(mockJcraftFactory.openNewSession(userName, password, host, port))
 				.thenReturn(mockSession);
 		when(mockSession.openChannel(anyString())).thenReturn(mockChannel);
-		manager = new SftpConnectionManagerImpl(mockConfig, mockJcraftFactory);
+		manager = new SftpConnectionManager(mockConfig, mockJcraftFactory);
 	}
 
 	@Test
 	public void testConnectHappy() throws Exception {
-		String path = "somePath";
 		// call under test
 		manager.connect(mockHandler);
 		// the channel should be opened
@@ -73,14 +73,14 @@ public class SftpConnectionManagerImplTest {
 		verify(mockChannel).connect();
 		verify(mockChannel).disconnect();
 		verify(mockSession).disconnect();
-		verify(mockHandler).execute(any(SftpConnection.class));
+		verify(mockHandler).execute(any(FileConnection.class));
 	}
 
 	@Test
 	public void testConnectHandlerError() throws NotFoundException, Exception {
 		// Setup a failure
 		doThrow(new SftpException(22, "Something went wrong"))
-				.when(mockHandler).execute(any(SftpConnection.class));
+				.when(mockHandler).execute(any(FileConnection.class));
 		// call under test
 		try {
 			manager.connect(mockHandler);

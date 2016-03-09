@@ -2,13 +2,14 @@ package org.sagebionetworks.file.proxy.sftp;
 
 import java.io.OutputStream;
 
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpProgressMonitor;
 
-public class SftpConnectionImpl implements SftpConnection {
+public class SftpConnectionImpl implements FileConnection {
 
 	public static final String NO_SUCH_FILE = "No such file";
 

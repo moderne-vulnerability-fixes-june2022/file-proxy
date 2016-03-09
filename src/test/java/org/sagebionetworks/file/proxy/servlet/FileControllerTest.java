@@ -1,6 +1,10 @@
 package org.sagebionetworks.file.proxy.servlet;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -9,7 +13,23 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet.*;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.BYTES;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.CONTENT_DISPOSITION_PATTERN;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.GZIP;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_ACCEPT_ENCODING;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_ACCEPT_RANGES;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_DISPOSITION;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_ENCODING;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_LENGTH;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_MD5;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_RANGE;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_CONTENT_TYPE;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_RANGE;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.KEY_CONTENT_MD5;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.KEY_CONTENT_SIZE;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.KEY_CONTENT_TYPE;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.KEY_FILE_NAME;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.prepareContentHeaders;
 
 import java.io.OutputStream;
 import java.net.URLEncoder;
@@ -27,24 +47,24 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.sagebionetworks.file.proxy.FileConnection;
 import org.sagebionetworks.file.proxy.NotFoundException;
 import org.sagebionetworks.file.proxy.RangeNotSatisfiable;
 import org.sagebionetworks.file.proxy.sftp.ConnectionHandler;
-import org.sagebionetworks.file.proxy.sftp.SftpConnection;
-import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
+import org.sagebionetworks.file.proxy.sftp.FileConnectionManager;
 
-public class HttpToSftpServletTest {
+public class FileControllerTest {
 	
 	@Mock
 	HttpServletRequest mockRequest;
 	@Mock
 	HttpServletResponse mockResponse;
 	@Mock
-	SftpConnectionManager mockConnectionManager;
+	FileConnectionManager mockConnectionManager;
 	@Mock
 	ServletOutputStream mockStream;
 	@Mock
-	SftpConnection mockConnection;
+	FileConnection mockConnection;
 	@Mock
 	ConnectionHandler mockConnectionHandler;
 	
@@ -55,8 +75,9 @@ public class HttpToSftpServletTest {
 	String contentMD5Hex;
 	String contentMD5Base64;
 	OutputStream out;
+	String pathPrefix;
 	
-	HttpToSftpServlet servlet;
+	FileControllerImpl servlet;
 	
 	@Before
 	public void before() throws Exception{
@@ -94,7 +115,8 @@ public class HttpToSftpServletTest {
 				return null;
 			}}).when(mockConnectionManager).connect(any(ConnectionHandler.class));
 		
-		servlet = new HttpToSftpServlet(mockConnectionManager);
+		pathPrefix = "/sftp/";
+		servlet = new FileControllerImpl(mockConnectionManager, pathPrefix);
 		
 		// return the content size
 		when(mockConnection.getFileSize(anyString())).thenReturn(contentSize);
@@ -103,7 +125,7 @@ public class HttpToSftpServletTest {
 	@Test
 	public void testPrepareResponse() throws Exception {
 		// call under test
-		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		RequestDescription desc = FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		assertEquals("/pathStart/pathEnd", desc.getPath());
 		assertFalse(desc.isGZIP());
 		assertEquals(contentSize, desc.getFileSize());
@@ -123,7 +145,7 @@ public class HttpToSftpServletTest {
 		StringBuffer urlBuffer = new StringBuffer();
 		urlBuffer.append("http://host.org/prfix/sftp/pathStart/pathEnd");
 		// call under test
-		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		RequestDescription desc = FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		assertEquals("/pathStart/pathEnd",desc.getPath());
 	}
 	
@@ -134,7 +156,7 @@ public class HttpToSftpServletTest {
 		urlBuffer.append("http://host.org/sftp/pathStart/sftp/pathEnd");
 		when(mockRequest.getRequestURL()).thenReturn(urlBuffer);
 		// call under test
-		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		RequestDescription desc = FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		assertEquals("/pathStart/sftp/pathEnd",desc.getPath());
 	}
 	
@@ -148,7 +170,7 @@ public class HttpToSftpServletTest {
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		// call under test
-		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		
 		// four headers should be added
 		verify(mockResponse, never()).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
@@ -167,7 +189,7 @@ public class HttpToSftpServletTest {
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		// call under test
-		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		
 		// four headers should be added
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
@@ -186,7 +208,7 @@ public class HttpToSftpServletTest {
 		when(mockRequest.getQueryString()).thenReturn(query.toString());
 		
 		// call under test
-		HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		
 		// four headers should be added
 		verify(mockResponse).setHeader(HEADER_CONTENT_DISPOSITION, String.format(CONTENT_DISPOSITION_PATTERN, fileName));
@@ -247,42 +269,42 @@ public class HttpToSftpServletTest {
 	@Test
 	public void testIsGZIPRequestNoAcceptHeader(){
 		String contentType = "text/plain";
-		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
+		long fileSize = FileControllerImpl.MIN_COMPRESSION_FILE_SIZE_BYES+1;
 		// call under test
-		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		boolean isGZIP = FileControllerImpl.isGZIPRequest(mockRequest, contentType, fileSize);
 		assertFalse(isGZIP);
 	}
 	
 	@Test
 	public void testIsGZIPRequest(){
 		String contentType = "text/plain";
-		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
+		long fileSize = FileControllerImpl.MIN_COMPRESSION_FILE_SIZE_BYES+1;
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
 		// call under test
-		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		boolean isGZIP = FileControllerImpl.isGZIPRequest(mockRequest, contentType, fileSize);
 		assertTrue(isGZIP);
 	}
 	
 	@Test
 	public void testIsGZIPRequestBinary(){
 		String contentType = "application/octet-stream";
-		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES+1;
+		long fileSize = FileControllerImpl.MIN_COMPRESSION_FILE_SIZE_BYES+1;
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
 		// call under test
-		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		boolean isGZIP = FileControllerImpl.isGZIPRequest(mockRequest, contentType, fileSize);
 		assertFalse(isGZIP);
 	}
 	
 	@Test
 	public void testIsGZIPRequestTooSmall(){
 		String contentType = "text/plain";
-		long fileSize = HttpToSftpServlet.MIN_COMPRESSION_FILE_SIZE_BYES-1;
+		long fileSize = FileControllerImpl.MIN_COMPRESSION_FILE_SIZE_BYES-1;
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
 		// call under test
-		boolean isGZIP = HttpToSftpServlet.isGZIPRequest(mockRequest, contentType, fileSize);
+		boolean isGZIP = FileControllerImpl.isGZIPRequest(mockRequest, contentType, fileSize);
 		assertFalse(isGZIP);
 	}
 	
@@ -291,7 +313,7 @@ public class HttpToSftpServletTest {
 		// setup a GZIP request
 		when(mockRequest.getHeader(HEADER_ACCEPT_ENCODING)).thenReturn("gzip, deflate");
 		// call under test
-		RequestDescription desc = HttpToSftpServlet.prepareResponse(mockRequest, mockResponse, mockConnection);
+		RequestDescription desc = FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		assertEquals("/pathStart/pathEnd",desc.getPath());
 		// gzip content encoding should be used.
 		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
@@ -319,7 +341,7 @@ public class HttpToSftpServletTest {
 	public void testIsRangeRequestFalse() throws Exception {
 		long fileSize = 123;
 		// default request is not a range request
-		assertEquals(null, HttpToSftpServlet.isRangeRequest(mockRequest, fileSize));
+		assertEquals(null, FileControllerImpl.isRangeRequest(mockRequest, fileSize));
 	}
 	
 	@Test
@@ -332,7 +354,7 @@ public class HttpToSftpServletTest {
 		// default request is not a range request
 		RangeValue exected = new RangeValue(rangeString);
 		// call under test
-		RangeValue result = HttpToSftpServlet.isRangeRequest(mockRequest, fileSize);
+		RangeValue result = FileControllerImpl.isRangeRequest(mockRequest, fileSize);
 		//call under test.
 		assertEquals(exected, result);
 	}
@@ -346,7 +368,7 @@ public class HttpToSftpServletTest {
 		long fileSize = 123;
 		try {
 			// call under test
-			HttpToSftpServlet.isRangeRequest(mockRequest, fileSize);
+			FileControllerImpl.isRangeRequest(mockRequest, fileSize);
 			fail("Should throw an exception");
 		} catch (RangeNotSatisfiable e) {
 			// expected
