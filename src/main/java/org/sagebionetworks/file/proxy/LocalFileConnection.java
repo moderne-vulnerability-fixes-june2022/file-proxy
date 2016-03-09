@@ -18,7 +18,17 @@ public class LocalFileConnection implements FileConnection {
 	final String pathPrefix;
 	
 	
-	public LocalFileConnection(String pathPrefix) {
+	public LocalFileConnection(String pathPrefix) throws NotFoundException {
+		if(pathPrefix == null || "".equals(pathPrefix.trim())){
+			throw new IllegalArgumentException("pathPrefix cannot be null or empty");
+		}
+		if(!pathPrefix.endsWith(File.separator)){
+			pathPrefix += File.separator;
+		}
+		File dir = new File(pathPrefix);
+		if(!dir.exists()){
+			throw new NotFoundException("The path prefix does not exist: "+pathPrefix);
+		}
 		this.pathPrefix = pathPrefix;
 	}
 

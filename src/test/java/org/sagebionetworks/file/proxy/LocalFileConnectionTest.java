@@ -19,7 +19,7 @@ public class LocalFileConnectionTest {
 	LocalFileConnection connection;
 
 	@Before
-	public void before() throws IOException{
+	public void before() throws IOException, NotFoundException {
 		// Use the temp directory as the pathPrefix
 		pathPrefix = System.getProperty("java.io.tmpdir");
 		connection = new LocalFileConnection(pathPrefix);
@@ -43,6 +43,40 @@ public class LocalFileConnectionTest {
 		File file = connection.getFileForPath(tempFile.getName());
 		assertNotNull(file);
 		assertEquals(tempFile, file);
+	}
+	
+	@Test
+	public void testGetFileForPathNoSlash() throws NotFoundException{
+		pathPrefix = System.getProperty("java.io.tmpdir");
+		// remove the last slash if it exists
+		int index = pathPrefix.lastIndexOf(File.separatorChar);
+		if(index > 0){
+			pathPrefix = pathPrefix.substring(0, index);
+		}
+		connection = new LocalFileConnection(pathPrefix);
+		// Should still be able to get the file
+		File file = connection.getFileForPath(tempFile.getName());
+		assertNotNull(file);
+		assertEquals(tempFile, file);
+	}
+	
+	@Test (expected=NotFoundException.class)
+	public void testGetFileForPathNotExist() throws NotFoundException{
+		pathPrefix = File.separator+"doesnotexist";
+
+		connection = new LocalFileConnection(pathPrefix);
+	}
+	
+	@Test (expected=IllegalArgumentException.class)
+	public void testGetFileForPathNull() throws NotFoundException{
+		pathPrefix = null;
+		connection = new LocalFileConnection(pathPrefix);
+	}
+	
+	@Test (expected=IllegalArgumentException.class)
+	public void testGetFileForPathEmpty() throws NotFoundException{
+		pathPrefix = "";
+		connection = new LocalFileConnection(pathPrefix);
 	}
 	
 	@Test (expected=NotFoundException.class)
@@ -84,5 +118,5 @@ public class LocalFileConnectionTest {
 		String fromOut = new String(out.toByteArray(), "UTF-8");
 		assertEquals(fileData, fromOut);
 	}
-	
+
 }
