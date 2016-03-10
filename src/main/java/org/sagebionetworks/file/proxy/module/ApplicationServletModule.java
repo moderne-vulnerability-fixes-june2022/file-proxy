@@ -10,6 +10,7 @@ import org.sagebionetworks.file.proxy.servlet.HttpToSftpServlet;
 import org.sagebionetworks.file.proxy.sftp.SftpConnectionManager;
 
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.servlet.ServletModule;
 
 public class ApplicationServletModule extends ServletModule {
@@ -37,7 +38,7 @@ public class ApplicationServletModule extends ServletModule {
 	 * @param manager
 	 * @return
 	 */
-	@Provides
+	@Provides @Singleton
 	HttpToSftpServlet provideHttpToSftpServlet(SftpConnectionManager manager){
 		return new HttpToSftpServlet(new FileControllerImpl(manager, SFTP_PATH_PREFIX));
 	}
@@ -47,7 +48,7 @@ public class ApplicationServletModule extends ServletModule {
 	 * @param manager
 	 * @return
 	 */
-	@Provides
+	@Provides @Singleton
 	HttpToLocalServlet provideHttpToLocalServlet(LocalConnectionManager manager){
 		return new HttpToLocalServlet(new FileControllerImpl(manager, LOCAL_PATH_PREFIX));
 	}
