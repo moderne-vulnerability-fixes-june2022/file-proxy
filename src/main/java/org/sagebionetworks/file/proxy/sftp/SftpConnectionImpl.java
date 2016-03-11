@@ -131,7 +131,10 @@ public class SftpConnectionImpl implements FileConnection {
 		try {
 			// Get the attributes of this file.
 			SftpATTRS atts = this.sftpChannel.lstat(path);
-			return atts.getMTime();
+			// this api returns the time in Seconds
+			long modifiedTimeSeconds = atts.getMTime();
+			// return the time in milliseconds
+			return modifiedTimeSeconds*1000;
 		} catch (Exception e) {
 			handleNotFound(path, e);
 			// convert to a runtime
