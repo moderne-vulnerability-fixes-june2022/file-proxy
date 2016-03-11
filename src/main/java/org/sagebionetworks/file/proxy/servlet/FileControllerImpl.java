@@ -200,7 +200,7 @@ public class FileControllerImpl implements FileController {
 			} catch (DecoderException e) {
 				log.info("Failed to convert MD5 hex :"+md5+" message: "+e.getMessage());
 			}
-			// When given an md5 use it as an etag.  Firefox requires an ETage for partial content (406)
+			// When given an md5 use it as an etag.  Firefox requires an ETage for partial content (206)
 			response.setHeader(HEADER_E_TAG, md5);
 		}
 		// Path excludes pathPrefix
@@ -212,7 +212,7 @@ public class FileControllerImpl implements FileController {
 		// The path of the file on the SFTP server.
 		String path = urlData.getPath().substring(index+pathPrefix.length()-1);
 		description.setPath(path);
-		// Including Content-Location as it is recommended for partial content (406).
+		// Including Content-Location as it is recommended for partial content (206).
 		response.setHeader(HEADER_CONTENT_LOCATION, path);
 		
 		// get the file size.
@@ -226,7 +226,7 @@ public class FileControllerImpl implements FileController {
 		// Notify clients that byte serving is supported (https://en.wikipedia.org/wiki/Byte_serving)
 		response.setHeader(HEADER_ACCEPT_RANGES, BYTES);
 		
-		// Date field should be returned for all responses and is required for partial content (406).
+		// Date field should be returned for all responses and is required for partial content (206).
 		response.setHeader(HEADER_DATE, getServerTime());
 				
 		// Is the client requesting compression?
