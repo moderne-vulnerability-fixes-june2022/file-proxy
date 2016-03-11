@@ -47,7 +47,7 @@ public class LocalFileConnection implements FileConnection {
         try {
 			final FileInputStream fis = new FileInputStream(fileToGet);
 			try {
-				long length = endByteIndex-startByteIndex;
+				long length = endByteIndex-startByteIndex+1;
 			    long copiedBytes = IOUtils.copyLarge(fis, stream, startByteIndex, length);
 			    return copiedBytes > 0;
 			} finally {
@@ -78,6 +78,12 @@ public class LocalFileConnection implements FileConnection {
 			throw new NotFoundException("File does not exist: "+absolutePath);
 		}
 		return fileToGet;
+	}
+
+	@Override
+	public long getLastModifiedDate(String path) throws NotFoundException {
+		File fileToGet = getFileForPath(path);
+		return fileToGet.lastModified();
 	}
 
 }

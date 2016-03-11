@@ -38,4 +38,12 @@ public interface FileConnection {
 	 * @return
 	 */
 	long getFileSize(String path) throws NotFoundException;
+	
+	/**
+	 * Get the last modified date of the file in UTC.
+	 * @param path
+	 * @return
+	 * @throws NotFoundException
+	 */
+	long getLastModifiedDate(String path) throws NotFoundException;
 }

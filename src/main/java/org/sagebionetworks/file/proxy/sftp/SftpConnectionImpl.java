@@ -126,4 +126,17 @@ public class SftpConnectionImpl implements FileConnection {
 
 	}
 
+	@Override
+	public long getLastModifiedDate(String path) throws NotFoundException {
+		try {
+			// Get the attributes of this file.
+			SftpATTRS atts = this.sftpChannel.lstat(path);
+			return atts.getMTime();
+		} catch (Exception e) {
+			handleNotFound(path, e);
+			// convert to a runtime
+			throw new RuntimeException(e);
+		}
+	}
+
 }
