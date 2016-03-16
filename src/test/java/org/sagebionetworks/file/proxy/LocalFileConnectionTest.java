@@ -110,13 +110,20 @@ public class LocalFileConnectionTest {
 		// Read the file 3 bytes at a time.
 		long bytesPerRead = 3;
 		for(long startByteIndex = 0; startByteIndex < fileSize; startByteIndex+=bytesPerRead){
-			long endByteIndex = startByteIndex + bytesPerRead;
+			long endByteIndex = startByteIndex + bytesPerRead-1;
 			// method under test.
 			connection.getFileRange(tempFile.getName(), out, startByteIndex, endByteIndex);
 		}
 		// Is the file content copied?
 		String fromOut = new String(out.toByteArray(), "UTF-8");
 		assertEquals(fileData, fromOut);
+	}
+	
+	@Test
+	public void testGetLastMod() throws NotFoundException{
+		// call under test
+		long lastModifiedOn = connection.getLastModifiedDate(tempFile.getName());
+		assertEquals(tempFile.lastModified(), lastModifiedOn);
 	}
 
 }

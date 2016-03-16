@@ -30,6 +30,7 @@ public class SftpConnectionImplTest {
 	SftpATTRS mockAtts;
 	
 	long fileSize;
+	long lastModifiedOnSec;
 	SftpATTRS atts;
 	String path;
 	// for range read track the current range index.
@@ -45,6 +46,9 @@ public class SftpConnectionImplTest {
 		
 		fileSize = 123L;
 		when(mockAtts.getSize()).thenReturn(fileSize);
+		lastModifiedOnSec = 8888L;
+		when(mockAtts.getMTime()).thenReturn((int) lastModifiedOnSec);
+		
 		path = "/root/folder/child.txt";
 		
 		when(mockSftpChannel.lstat(path)).thenReturn(mockAtts);
@@ -155,6 +159,15 @@ public class SftpConnectionImplTest {
 		long endByteIndex = Long.MAX_VALUE;
 		// call under test
 		connection.getFileRange(path, mockOut, startByteIndex, endByteIndex);
+	}
+	
+	@Test
+	public void testGetLastMod() throws NotFoundException{
+		// call under test
+		long lastMod = connection.getLastModifiedDate(path);
+		// value should be returned in MS.
+		long expectedLastModifiedOnMS = this.lastModifiedOnSec*1000;
+		assertEquals(expectedLastModifiedOnMS, lastMod);
 	}
 	
 }

@@ -3,7 +3,10 @@ package org.sagebionetworks.file.proxy.servlet;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.zip.GZIPOutputStream;
 
 import javax.servlet.ServletException;
@@ -48,6 +51,10 @@ public class FileControllerImpl implements FileController {
 	public static final String HEADER_ACCEPT_RANGES = "Accept-Ranges";
 	public static final String HEADER_RANGE = "Range";
 	public static final String HEADER_CONTENT_RANGE = "Content-Range";
+	public static final String HEADER_E_TAG = "ETag";
+	public static final String HEADER_CONTENT_LOCATION = "Content-Location";
+	public static final String HEADER_DATE = "Date";
+	public static final String HEADER_LAST_MODIFIED = "Last-Modified";
 
 	public static final String KEY_CONTENT_MD5 = "contentMD5";
 	public static final String KEY_CONTENT_TYPE = "contentType";
@@ -89,15 +96,16 @@ public class FileControllerImpl implements FileController {
 				
 				// The request can either be a full file request or a range request
 				if(desc.getRange() != null){
+					// partial content response
+					// Note: Getting the file will close the connection, so the status must be set before the file is fetched.
+					response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
 					// range download
 					connection.getFileRange(desc.getPath(), out, desc.getRange().getFirstBytePosition(), desc.getRange().getLastBytePosition());
-					// partial content response
-					response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
 				}else{
+					// Note: Getting the file will close the connection, so the status must be set before the file is fetched.
+					response.setStatus(HttpServletResponse.SC_OK);
 					// Full file download.
 					connection.getFile(desc.getPath(), out);
-					// done
-					response.setStatus(HttpServletResponse.SC_OK);
 				}
 
 			}
@@ -192,7 +200,8 @@ public class FileControllerImpl implements FileController {
 			} catch (DecoderException e) {
 				log.info("Failed to convert MD5 hex :"+md5+" message: "+e.getMessage());
 			}
-
+			// When given an md5 use it as an etag.  Firefox requires an ETage for partial content (206)
+			response.setHeader(HEADER_E_TAG, md5);
 		}
 		// Path excludes pathPrefix
 		int index = urlData.getPath().indexOf(pathPrefix);
@@ -203,13 +212,23 @@ public class FileControllerImpl implements FileController {
 		// The path of the file on the SFTP server.
 		String path = urlData.getPath().substring(index+pathPrefix.length()-1);
 		description.setPath(path);
+		// Including Content-Location as it is recommended for partial content (206).
+		response.setHeader(HEADER_CONTENT_LOCATION, path);
+		
 		// get the file size.
 		long fileSize = connection.getFileSize(path);
 		description.setFileSize(fileSize);
 		
+		// Include the last modified date for the file.
+		long lastModifiedOn = connection.getLastModifiedDate(path);
+		response.setHeader(HEADER_LAST_MODIFIED, getServerTime(lastModifiedOn));
+		
 		// Notify clients that byte serving is supported (https://en.wikipedia.org/wiki/Byte_serving)
 		response.setHeader(HEADER_ACCEPT_RANGES, BYTES);
 		
+		// Date field should be returned for all responses and is required for partial content (206).
+		response.setHeader(HEADER_DATE, getServerTime());
+				
 		// Is the client requesting compression?
 		if(isGZIPRequest(request, contentType, fileSize)){
 			// Will respond with GZIP result.
@@ -301,4 +320,26 @@ public class FileControllerImpl implements FileController {
 		return null;
 	}
 	
+	/**
+	 * Get the server time in HTTP-date format
+	 * 
+	 * @param time
+	 * @return
+	 */
+	static String getServerTime(long time){
+	    SimpleDateFormat dateFormat = new SimpleDateFormat(
+	        "EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
+	    dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+	    return dateFormat.format(time);
+	}
+	
+	/**
+	 * Get the current server time in HTTP-date format
+	 * (https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html) 14.18 Date.
+	 * 
+	 * @return
+	 */
+	static String getServerTime() {
+		return getServerTime(System.currentTimeMillis());
+	}
 }

@@ -13,7 +13,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.BYTES;
+import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.*;
 import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.CONTENT_DISPOSITION_PATTERN;
 import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.GZIP;
 import static org.sagebionetworks.file.proxy.servlet.FileControllerImpl.HEADER_ACCEPT_ENCODING;
@@ -120,6 +120,7 @@ public class FileControllerTest {
 		
 		// return the content size
 		when(mockConnection.getFileSize(anyString())).thenReturn(contentSize);
+		when(mockConnection.getLastModifiedDate(anyString())).thenReturn(456000L);
 	}
 	
 	@Test
@@ -135,6 +136,10 @@ public class FileControllerTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
+		verify(mockResponse).setHeader(HEADER_E_TAG, contentMD5Hex);
+		verify(mockResponse).setHeader(eq(HEADER_DATE), anyString());
+		verify(mockResponse).setHeader(HEADER_CONTENT_LOCATION, desc.getPath());
+		verify(mockResponse).setHeader(HEADER_LAST_MODIFIED, "Thu, 01 Jan 1970 00:07:36 GMT");
 		// also support for byte serving
 		verify(mockResponse).setHeader(HEADER_ACCEPT_RANGES, BYTES);
 	}
@@ -481,5 +486,12 @@ public class FileControllerTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+fileSize);
 		// range should not be set for this case.
 		assertEquals(null, desc.getRange());
+	}
+	
+	@Test
+	public void testGetServerTime(){
+		// call under test
+		String timeString = FileControllerImpl.getServerTime(123000);
+		assertEquals("Thu, 01 Jan 1970 00:02:03 GMT", timeString);
 	}
 }
