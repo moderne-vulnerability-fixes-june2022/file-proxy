@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -65,6 +67,22 @@ public class LocalFileConnection implements FileConnection {
 	}
 	
 	/**
+	 * Get the absolute path given a URL encoded relative path.
+	 * 
+	 * @param relativePath
+	 * @return
+	 */
+	public String getAbsolutePath(String relativePath) {
+		try {
+			relativePath = URLDecoder.decode(relativePath, "UTF-8");
+			String absolutePath = this.pathPrefix+relativePath;
+			return absolutePath;
+		} catch (UnsupportedEncodingException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+	
+	/**
 	 * Attempt to resolve the given relative path to an actual file.
 	 * 
 	 * @param relativePath relative path to the file.
@@ -72,7 +90,7 @@ public class LocalFileConnection implements FileConnection {
 	 * @throws NotFoundException If the file cannot be found.
 	 */
 	public File getFileForPath(String relativePath) throws NotFoundException{
-		String absolutePath = this.pathPrefix+relativePath;
+		String absolutePath = getAbsolutePath(relativePath);
 		File fileToGet = new File(absolutePath);
 		if(!fileToGet.exists()){
 			throw new NotFoundException("File does not exist: "+absolutePath);
