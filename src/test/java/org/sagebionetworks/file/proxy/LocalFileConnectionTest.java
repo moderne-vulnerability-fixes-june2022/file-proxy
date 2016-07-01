@@ -39,9 +39,9 @@ public class LocalFileConnectionTest {
 	
 	@Test
 	public void testGetAbsolutePathEncoded(){
-		String relativePath = "/foo%2Fhas%20space.txt";
+		String relativePath = "foo%2Fhas%20space.txt";
 		String absolute = connection.getAbsolutePath(relativePath);
-		assertEquals(pathPrefix+"/foo/has space.txt",absolute);
+		assertEquals(pathPrefix+"foo/has space.txt",absolute);
 	}
 	
 	@Test
