@@ -22,6 +22,9 @@ public class LocalFileConnectionTest {
 	public void before() throws IOException, NotFoundException {
 		// Use the temp directory as the pathPrefix
 		pathPrefix = System.getProperty("java.io.tmpdir");
+		if(!pathPrefix.endsWith(File.separator)){
+			pathPrefix += File.separator;
+		}
 		connection = new LocalFileConnection(pathPrefix);
 		
 		// Create a tempFile to use.
