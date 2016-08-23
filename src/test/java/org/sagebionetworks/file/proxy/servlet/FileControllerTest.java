@@ -320,8 +320,8 @@ public class FileControllerTest {
 		// call under test
 		RequestDescription desc = FileControllerImpl.prepareResponse(mockRequest, mockResponse, mockConnection, pathPrefix);
 		assertEquals("/pathStart/pathEnd",desc.getPath());
-		// gzip content encoding should be used.
-		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
+		// do not change encoding.
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_ENCODING, GZIP);
 	}
 	
 	@Test
@@ -335,11 +335,11 @@ public class FileControllerTest {
 		verify(mockResponse).setHeader(HEADER_CONTENT_TYPE, contentType);
 		verify(mockResponse).setHeader(HEADER_CONTENT_LENGTH, ""+contentSize);
 		verify(mockResponse).setHeader(HEADER_CONTENT_MD5, contentMD5Base64);
-		verify(mockResponse).setHeader(HEADER_CONTENT_ENCODING, GZIP);
+		verify(mockResponse, never()).setHeader(HEADER_CONTENT_ENCODING, GZIP);
 		
 		String expectedPath = "/pathStart/pathEnd";
 		// The file should be written to a GZIP
-		verify(mockConnection).getFile(eq(expectedPath), any(GZIPOutputStream.class));
+		verify(mockConnection).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
