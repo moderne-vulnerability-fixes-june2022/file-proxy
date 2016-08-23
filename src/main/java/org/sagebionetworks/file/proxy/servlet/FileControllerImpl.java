@@ -88,12 +88,6 @@ public class FileControllerImpl implements FileController {
 				final RequestDescription desc = prepareResponse(request, response, connection, pathPrefix);
 				// Write the file to the HTTP output stream
 				OutputStream out = response.getOutputStream();
-				if(desc.isGZIP()){
-					// Send compressed results.
-					out = new GZIPOutputStream(out);
-					log.info("Using compression for: "+desc.getPath());
-				}
-				
 				// The request can either be a full file request or a range request
 				if(desc.getRange() != null){
 					// partial content response
@@ -228,13 +222,6 @@ public class FileControllerImpl implements FileController {
 		
 		// Date field should be returned for all responses and is required for partial content (206).
 		response.setHeader(HEADER_DATE, getServerTime());
-				
-		// Is the client requesting compression?
-		if(isGZIPRequest(request, contentType, fileSize)){
-			// Will respond with GZIP result.
-			response.setHeader(HEADER_CONTENT_ENCODING, GZIP);
-			description.setIsGZIP(true);
-		}
 		
 		// Setup content size and content range.
 		prepareContentHeaders(request, response, description);
