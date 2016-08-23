@@ -339,7 +339,7 @@ public class FileControllerTest {
 		
 		String expectedPath = "/pathStart/pathEnd";
 		// The file should be written to a GZIP
-		verify(mockConnection).getFile(eq(expectedPath), any(GZIPOutputStream.class));
+		verify(mockConnection).getFile(eq(expectedPath), any(OutputStream.class));
 	}
 	
 	@Test
